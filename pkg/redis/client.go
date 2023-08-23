@@ -22,6 +22,7 @@ var redisDatabases = map[string]int{
 type RedisConfig struct {
 	Address  string `env:"REDIS_ADDRESS" env-default:"localhost:6379"`
 	Password string `env:"REDIS_PASSWORD" env-default:""`
+	Network  string `env:"REDIS_NETWORK" env-default:"tcp"`
 }
 
 var cfg = RedisConfig{}
@@ -35,6 +36,7 @@ func connect(dbName string) error {
 	}
 
 	redisClients[dbName] = redis.NewClient(&redis.Options{
+		Network:  cfg.Network,
 		Addr:     cfg.Address,
 		Password: cfg.Password,
 		DB:       redisDatabases[dbName],
