@@ -8,9 +8,9 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-var ctx = context.Background()
-
-var redisClients = make(map[string]*redis.Client)
+type Client struct {
+	databases map[string]*redis.Client
+}
 
 var redisDatabases = map[string]int{
 	"APPL_DB":     0,
@@ -27,15 +27,20 @@ type RedisConfig struct {
 
 var cfg = RedisConfig{}
 
-func connect(dbName string) error {
-	if cfg == (RedisConfig{}) { // if config is not initialized
-		err := cleanenv.ReadEnv(&cfg)
-		if err != nil {
-			return errors.New("failed to read redis config")
-		}
+func NewClient() (Client, error) {
+	var c = Client{}
+	err := cleanenv.ReadEnv(&cfg)
+	if err != nil {
+		return c, errors.New("failed to read redis config")
 	}
 
-	redisClients[dbName] = redis.NewClient(&redis.Options{
+	c.databases = make(map[string]*redis.Client)
+
+	return c, nil
+}
+
+func (c *Client) connect(dbName string) error {
+	c.databases[dbName] = redis.NewClient(&redis.Options{
 		Network:  cfg.Network,
 		Addr:     cfg.Address,
 		Password: cfg.Password,
@@ -46,21 +51,21 @@ func connect(dbName string) error {
 }
 
 // Issue a HGETALL on key in a selected database
-func HgetAllFromDb(dbName, key string) (map[string]string, error) {
+func (c Client) HgetAllFromDb(ctx context.Context, dbName, key string) (map[string]string, error) {
 	var client *redis.Client
 
 	_, ok := redisDatabases[dbName]
 
 	if ok {
-		client, ok = redisClients[dbName]
+		client, ok = c.databases[dbName]
 
 		if !ok {
-			err := connect(dbName)
+			err := c.connect(dbName)
 			if err != nil {
 				return nil, err
 			}
 
-			client = redisClients[dbName]
+			client = c.databases[dbName]
 		}
 		data, err := client.HGetAll(ctx, key).Result()
 		return data, err
