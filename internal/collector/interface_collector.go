@@ -24,19 +24,6 @@ var (
 	logger = promlog.New(&promlog.Config{})
 )
 
-var interfacePacketSizeKeyMap = map[string]string{
-	"64":    "SAI_PORT_STAT_ETHER_%s_PKTS_64_OCTETS",
-	"127":   "SAI_PORT_STAT_ETHER_%s_PKTS_65_TO_127_OCTETS",
-	"255":   "SAI_PORT_STAT_ETHER_%s_PKTS_128_TO_255_OCTETS",
-	"511":   "SAI_PORT_STAT_ETHER_%s_PKTS_256_TO_511_OCTETS",
-	"1023":  "SAI_PORT_STAT_ETHER_%s_PKTS_512_TO_1023_OCTETS",
-	"1518":  "SAI_PORT_STAT_ETHER_%s_PKTS_1024_TO_1518_OCTETS",
-	"2047":  "SAI_PORT_STAT_ETHER_%s_PKTS_1519_TO_2047_OCTETS",
-	"4095":  "SAI_PORT_STAT_ETHER_%s_PKTS_2048_TO_4095_OCTETS",
-	"9216":  "SAI_PORT_STAT_ETHER_%s_PKTS_4096_TO_9216_OCTETS",
-	"16383": "SAI_PORT_STAT_ETHER_%s_PKTS_9217_TO_16383_OCTETS",
-}
-
 var interfaceErrorTypeMap = map[string]map[string]string{
 	"in": {
 		"error":   "SAI_PORT_STAT_IF_IN_ERRORS",
@@ -55,6 +42,8 @@ const (
 	interfaceByteCountKey   = "SAI_PORT_STAT_IF_%s_OCTETS"
 	interfacePacketCountKey = "SAI_PORT_STAT_IF_%s_%s_PKTS"
 )
+
+type packetSize string
 
 type interfaceCollector struct {
 	interfaceInfo                    *prometheus.Desc
@@ -343,12 +332,41 @@ func (collector *interfaceCollector) collectInterfacePacketCounters(interfaceNam
 	return nil
 }
 
+func (p packetSize) format(direction string) string {
+	direction = strings.ToUpper(direction)
+
+	switch p {
+	case "64":
+		return fmt.Sprintf("SAI_PORT_STAT_ETHER_%s_PKTS_64_OCTETS", direction)
+	case "127":
+		return fmt.Sprintf("SAI_PORT_STAT_ETHER_%s_PKTS_65_TO_127_OCTETS", direction)
+	case "255":
+		return fmt.Sprintf("SAI_PORT_STAT_ETHER_%s_PKTS_128_TO_255_OCTETS", direction)
+	case "511":
+		return fmt.Sprintf("SAI_PORT_STAT_ETHER_%s_PKTS_256_TO_511_OCTETS", direction)
+	case "1023":
+		return fmt.Sprintf("SAI_PORT_STAT_ETHER_%s_PKTS_512_TO_1023_OCTETS", direction)
+	case "1518":
+		return fmt.Sprintf("SAI_PORT_STAT_ETHER_%s_PKTS_1024_TO_1518_OCTETS", direction)
+	case "2047":
+		return fmt.Sprintf("SAI_PORT_STAT_ETHER_%s_PKTS_1519_TO_2047_OCTETS", direction)
+	case "4095":
+		return fmt.Sprintf("SAI_PORT_STAT_ETHER_%s_PKTS_2048_TO_4095_OCTETS", direction)
+	case "9216":
+		return fmt.Sprintf("SAI_PORT_STAT_ETHER_%s_PKTS_4096_TO_9216_OCTETS", direction)
+	case "16383":
+		return fmt.Sprintf("SAI_PORT_STAT_ETHER_%s_PKTS_9217_TO_16383_OCTETS", direction)
+	}
+
+	return ""
+}
+
 func (collector *interfaceCollector) collectInterfacePacketSizeCounters(interfaceName string, counters map[string]string) error {
-	var size, key string
+	var sizes = []packetSize{"64", "127", "255", "511", "1023", "1518", "2047", "4095", "9216", "16383"}
 
 	for _, direction := range []string{"in", "out"} {
-		for size, key = range interfacePacketSizeKeyMap {
-			bytes, err := strconv.ParseFloat(counters[fmt.Sprintf(key, strings.ToUpper(direction))], 64)
+		for _, size := range sizes {
+			bytes, err := strconv.ParseFloat(counters[size.format(direction)], 64)
 			if err != nil {
 				return fmt.Errorf("value parse failed: %w", err)
 			}
@@ -356,11 +374,11 @@ func (collector *interfaceCollector) collectInterfacePacketSizeCounters(interfac
 			switch direction {
 			case "in":
 				collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
-					collector.interfaceReceiveEthernetPackets, prometheus.CounterValue, bytes, interfaceName, size,
+					collector.interfaceReceiveEthernetPackets, prometheus.CounterValue, bytes, interfaceName, string(size),
 				))
 			case "out":
 				collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
-					collector.interfaceTransmitEthernetPackets, prometheus.CounterValue, bytes, interfaceName, size,
+					collector.interfaceTransmitEthernetPackets, prometheus.CounterValue, bytes, interfaceName, string(size),
 				))
 			}
 		}
