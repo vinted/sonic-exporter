@@ -10,6 +10,7 @@ import (
 
 type Client struct {
 	databases map[string]*redis.Client
+	config    RedisConfig
 }
 
 var redisDatabases = map[string]int{
@@ -25,15 +26,16 @@ type RedisConfig struct {
 	Network  string `env:"REDIS_NETWORK" env-default:"tcp"`
 }
 
-var cfg = RedisConfig{}
-
 func NewClient() (Client, error) {
-	var c = Client{}
+	var cfg RedisConfig
+	c := Client{}
+
 	err := cleanenv.ReadEnv(&cfg)
 	if err != nil {
 		return c, errors.New("failed to read redis config")
 	}
 
+	c.config = cfg
 	c.databases = make(map[string]*redis.Client)
 
 	return c, nil
@@ -41,9 +43,9 @@ func NewClient() (Client, error) {
 
 func (c *Client) connect(dbName string) error {
 	c.databases[dbName] = redis.NewClient(&redis.Options{
-		Network:  cfg.Network,
-		Addr:     cfg.Address,
-		Password: cfg.Password,
+		Network:  c.config.Network,
+		Addr:     c.config.Address,
+		Password: c.config.Password,
 		DB:       redisDatabases[dbName],
 	})
 
