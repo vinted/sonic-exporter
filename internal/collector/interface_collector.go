@@ -24,13 +24,6 @@ var (
 	logger = promlog.New(&promlog.Config{})
 )
 
-var metricsCtx InterfaceMetrics
-
-type InterfaceMetrics struct {
-	metrics        []prometheus.Metric
-	lastScrapeTime time.Time
-}
-
 var interfacePacketSizeKeyMap = map[string]string{
 	"64":    "SAI_PORT_STAT_ETHER_%s_PKTS_64_OCTETS",
 	"127":   "SAI_PORT_STAT_ETHER_%s_PKTS_65_TO_127_OCTETS",
@@ -77,6 +70,8 @@ type interfaceCollector struct {
 	interfaceReceiveErrs             *prometheus.Desc
 	scrapeDuration                   *prometheus.Desc
 	scrapeCollectorSuccess           *prometheus.Desc
+	cachedMetrics                    []prometheus.Metric
+	lastScrapeTime                   time.Time
 }
 
 func NewInterfaceCollector() *interfaceCollector {
@@ -113,11 +108,11 @@ func NewInterfaceCollector() *interfaceCollector {
 func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 	scrapeTime := time.Now()
 	// collector.scrapeMetrics(ch)
-	if time.Since(metricsCtx.lastScrapeTime) < cacheDuration {
+	if time.Since(collector.lastScrapeTime) < cacheDuration {
 		// Return cached metrics without making redis calls
 		level.Info(logger).Log("msg", "Returning metrics from cache")
 
-		for _, metric := range metricsCtx.metrics {
+		for _, metric := range collector.cachedMetrics {
 			ch <- metric
 		}
 		ch <- prometheus.MustNewConstMetric(collector.scrapeDuration, prometheus.GaugeValue, time.Since(scrapeTime).Seconds())
@@ -126,7 +121,7 @@ func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 
 	collector.scrapeMetrics()
 
-	for _, cachedMetric := range metricsCtx.metrics {
+	for _, cachedMetric := range collector.cachedMetrics {
 		ch <- cachedMetric
 	}
 
@@ -143,7 +138,7 @@ func (collector *interfaceCollector) scrapeMetrics() {
 	}
 
 	// Reset metrics
-	metricsCtx.metrics = []prometheus.Metric{}
+	collector.cachedMetrics = []prometheus.Metric{}
 
 	ports, err := redisClient.HgetAllFromDb(ctx, "COUNTERS_DB", "COUNTERS_PORT_NAME_MAP")
 	if err != nil {
@@ -154,28 +149,26 @@ func (collector *interfaceCollector) scrapeMetrics() {
 	for port := range ports {
 		counterKey := fmt.Sprintf("COUNTERS:%s", ports[port])
 
-		interfaceCounters, err := collector.collectInterfaceCounters(redisClient, port, counterKey)
+		err := collector.collectInterfaceCounters(redisClient, port, counterKey)
 		if err != nil {
 			level.Error(logger).Log("msg", "Interface counters collection failed", "err", err)
 			scrapeSuccess = 0
 		}
 
-		interfaceInfo, err := collector.collectInterfaceInfo(redisClient, port)
+		err = collector.collectInterfaceInfo(redisClient, port)
 		if err != nil {
 			level.Error(logger).Log("msg", "Interface info collection failed", "err", err)
 			scrapeSuccess = 0
 		}
 
-		metricsCtx.metrics = append(metricsCtx.metrics, interfaceCounters...)
-		metricsCtx.metrics = append(metricsCtx.metrics, interfaceInfo...)
 	}
 
-	metricsCtx.metrics = append(metricsCtx.metrics, prometheus.MustNewConstMetric(
+	collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 		collector.scrapeCollectorSuccess, prometheus.GaugeValue, scrapeSuccess,
 	))
 	level.Info(logger).Log("msg", "Ending metric scrape")
 
-	metricsCtx.lastScrapeTime = time.Now()
+	collector.lastScrapeTime = time.Now()
 }
 
 func (collector *interfaceCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -194,55 +187,46 @@ func (collector *interfaceCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.scrapeCollectorSuccess
 }
 
-func (collector *interfaceCollector) collectInterfaceCounters(redisClient redis.Client, interfaceName, counterKey string) ([]prometheus.Metric, error) {
-	var (
-		counters map[string]string
-	)
-
-	collectedMetrics := make([]prometheus.Metric, 0) // Initialize an empty slice
+func (collector *interfaceCollector) collectInterfaceCounters(redisClient redis.Client, interfaceName, counterKey string) error {
+	var counters map[string]string
 
 	// Retrieve packet counters from redis database
 	counters, err := redisClient.HgetAllFromDb(ctx, "COUNTERS_DB", counterKey)
 	if err != nil {
 		level.Error(logger).Log("msg", "Redis read failed", "err", err)
-		return nil, err
+		return err
 	}
 
-	byteCounters, err := collector.collectInterfaceByteCounters(interfaceName, counters)
+	err = collector.collectInterfaceByteCounters(interfaceName, counters)
 	if err != nil {
 		level.Error(logger).Log("msg", "byte counters collection failed", "err", err)
-		return nil, err
+		return err
 	}
-	collectedMetrics = append(collectedMetrics, byteCounters...)
 
-	errCounters, err := collector.collectInterfaceErrCounters(interfaceName, counters)
+	err = collector.collectInterfaceErrCounters(interfaceName, counters)
 	if err != nil {
 		level.Error(logger).Log("msg", "err counters collection failed", "err", err)
-		return nil, err
+		return err
 	}
-	collectedMetrics = append(collectedMetrics, errCounters...)
 
-	packetCounters, err := collector.collectInterfacePacketCounters(interfaceName, counters)
+	err = collector.collectInterfacePacketCounters(interfaceName, counters)
 	if err != nil {
 		level.Error(logger).Log("msg", "packet counters collection failed", "err", err)
-		return nil, err
+		return err
 	}
-	collectedMetrics = append(collectedMetrics, packetCounters...)
 
-	packetSizeCounters, err := collector.collectInterfacePacketSizeCounters(interfaceName, counters)
+	err = collector.collectInterfacePacketSizeCounters(interfaceName, counters)
 	if err != nil {
 		level.Error(logger).Log("msg", "packet size counters collection failed", "err", err)
-		return nil, err
+		return err
 	}
-	collectedMetrics = append(collectedMetrics, packetSizeCounters...)
 
-	return collectedMetrics, nil
+	return nil
 
 }
 
-func (collector *interfaceCollector) collectInterfaceInfo(redisClient redis.Client, interfaceName string) ([]prometheus.Metric, error) {
+func (collector *interfaceCollector) collectInterfaceInfo(redisClient redis.Client, interfaceName string) error {
 	var interfaceKey string = fmt.Sprintf("PORTCHANNEL|%s", interfaceName)
-	collectedMetrics := make([]prometheus.Metric, 0) // Initialize an empty slice
 
 	if strings.HasPrefix(interfaceName, "Ethernet") {
 		interfaceKey = fmt.Sprintf("PORT|%s", interfaceName)
@@ -251,7 +235,7 @@ func (collector *interfaceCollector) collectInterfaceInfo(redisClient redis.Clie
 	info, err := redisClient.HgetAllFromDb(ctx, "CONFIG_DB", interfaceKey)
 	if err != nil {
 		level.Error(logger).Log("msg", "Redis read failed", "err", err)
-		return nil, err
+		return err
 	}
 
 	description, ok := info["description"]
@@ -262,49 +246,47 @@ func (collector *interfaceCollector) collectInterfaceInfo(redisClient redis.Clie
 	mtu, err := strconv.ParseFloat(info["mtu"], 64)
 	if err != nil {
 		level.Error(logger).Log("msg", "Value parse failed", "err", err, "key", interfaceKey, "subKey", "mtu")
-		return nil, err
+		return err
 	}
 
 	speed, err := strconv.ParseFloat(info["speed"], 64)
 	if err != nil {
 		level.Error(logger).Log("msg", "Value parse failed", "err", err, "key", interfaceKey, "subKey", "speed")
-		return nil, err
+		return err
 	}
 
-	collectedMetrics = append(collectedMetrics, prometheus.MustNewConstMetric(
+	collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 		collector.interfaceInfo, prometheus.GaugeValue, 1, interfaceName, info["alias"], info["index"], description,
 	))
 
-	collectedMetrics = append(collectedMetrics, prometheus.MustNewConstMetric(
+	collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 		collector.interfaceMtu, prometheus.GaugeValue, mtu, interfaceName,
 	))
 
-	collectedMetrics = append(collectedMetrics, prometheus.MustNewConstMetric(
+	collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 		collector.interfaceSpeed, prometheus.GaugeValue, speed*1000*1000/8, interfaceName,
 	))
 
-	return collectedMetrics, nil
+	return nil
 }
 
-func (collector *interfaceCollector) collectInterfaceByteCounters(interfaceName string, counters map[string]string) ([]prometheus.Metric, error) {
-	var collectedMetrics []prometheus.Metric
-
+func (collector *interfaceCollector) collectInterfaceByteCounters(interfaceName string, counters map[string]string) error {
 	for _, direction := range []string{"in", "out"} {
 		bytes, err := strconv.ParseFloat(counters[fmt.Sprintf(interfaceByteCountKey, strings.ToUpper(direction))], 64)
 		if err != nil {
 			level.Error(logger).Log("msg", "Value parse failed", "err", err)
-			return nil, err
+			return err
 		}
 
 		switch direction {
 		case "in":
-			collectedMetrics = append(collectedMetrics,
+			collector.cachedMetrics = append(collector.cachedMetrics,
 				prometheus.MustNewConstMetric(
 					collector.interfaceReceivedBytes, prometheus.CounterValue, bytes, interfaceName,
 				),
 			)
 		case "out":
-			collectedMetrics = append(collectedMetrics,
+			collector.cachedMetrics = append(collector.cachedMetrics,
 				prometheus.MustNewConstMetric(
 					collector.interfaceTransmitBytes, prometheus.CounterValue, bytes, interfaceName,
 				),
@@ -312,29 +294,27 @@ func (collector *interfaceCollector) collectInterfaceByteCounters(interfaceName 
 		}
 	}
 
-	return collectedMetrics, nil
+	return nil
 }
 
-func (collector *interfaceCollector) collectInterfaceErrCounters(interfaceName string, counters map[string]string) ([]prometheus.Metric, error) {
-	var collectedMetrics []prometheus.Metric
-
+func (collector *interfaceCollector) collectInterfaceErrCounters(interfaceName string, counters map[string]string) error {
 	for _, direction := range []string{"in", "out"} {
 		for errType, key := range interfaceErrorTypeMap[direction] {
 			packets, err := strconv.ParseFloat(counters[key], 64)
 			if err != nil {
 				level.Error(logger).Log("msg", "Value parse failed", "err", err)
-				return nil, err
+				return err
 			}
 
 			switch direction {
 			case "in":
-				collectedMetrics = append(collectedMetrics,
+				collector.cachedMetrics = append(collector.cachedMetrics,
 					prometheus.MustNewConstMetric(
 						collector.interfaceReceiveErrs, prometheus.CounterValue, packets, interfaceName, errType,
 					),
 				)
 			case "out":
-				collectedMetrics = append(collectedMetrics,
+				collector.cachedMetrics = append(collector.cachedMetrics,
 					prometheus.MustNewConstMetric(
 						collector.interfaceTransmitErrs, prometheus.CounterValue, packets, interfaceName, errType,
 					),
@@ -343,29 +323,27 @@ func (collector *interfaceCollector) collectInterfaceErrCounters(interfaceName s
 		}
 	}
 
-	return collectedMetrics, nil
+	return nil
 }
 
-func (collector *interfaceCollector) collectInterfacePacketCounters(interfaceName string, counters map[string]string) ([]prometheus.Metric, error) {
-	var collectedMetrics []prometheus.Metric
-
+func (collector *interfaceCollector) collectInterfacePacketCounters(interfaceName string, counters map[string]string) error {
 	for _, direction := range []string{"in", "out"} {
 		for _, method := range []string{"ucast", "broadcast", "multicast"} {
 			packets, err := strconv.ParseFloat(counters[fmt.Sprintf(interfacePacketCountKey, strings.ToUpper(direction), strings.ToUpper(method))], 64)
 			if err != nil {
 				level.Error(logger).Log("msg", "Value parse failed", "err", err)
-				return nil, err
+				return err
 			}
 
 			switch direction {
 			case "in":
-				collectedMetrics = append(collectedMetrics,
+				collector.cachedMetrics = append(collector.cachedMetrics,
 					prometheus.MustNewConstMetric(
 						collector.interfaceReceivePackets, prometheus.CounterValue, packets, interfaceName, method,
 					),
 				)
 			case "out":
-				collectedMetrics = append(collectedMetrics,
+				collector.cachedMetrics = append(collector.cachedMetrics,
 					prometheus.MustNewConstMetric(
 						collector.interfaceTransmitPackets, prometheus.CounterValue, packets, interfaceName, method,
 					),
@@ -374,35 +352,32 @@ func (collector *interfaceCollector) collectInterfacePacketCounters(interfaceNam
 		}
 	}
 
-	return collectedMetrics, nil
+	return nil
 }
 
-func (collector *interfaceCollector) collectInterfacePacketSizeCounters(interfaceName string, counters map[string]string) ([]prometheus.Metric, error) {
-	var (
-		collectedMetrics []prometheus.Metric
-		size, key        string
-	)
+func (collector *interfaceCollector) collectInterfacePacketSizeCounters(interfaceName string, counters map[string]string) error {
+	var size, key string
 
 	for _, direction := range []string{"in", "out"} {
 		for size, key = range interfacePacketSizeKeyMap {
 			bytes, err := strconv.ParseFloat(counters[fmt.Sprintf(key, strings.ToUpper(direction))], 64)
 			if err != nil {
 				level.Error(logger).Log("msg", "Value parse failed", "err", err)
-				return nil, err
+				return err
 			}
 
 			switch direction {
 			case "in":
-				collectedMetrics = append(collectedMetrics, prometheus.MustNewConstMetric(
+				collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 					collector.interfaceReceiveEthernetPackets, prometheus.CounterValue, bytes, interfaceName, size,
 				))
 			case "out":
-				collectedMetrics = append(collectedMetrics, prometheus.MustNewConstMetric(
+				collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 					collector.interfaceTransmitEthernetPackets, prometheus.CounterValue, bytes, interfaceName, size,
 				))
 			}
 		}
 	}
 
-	return collectedMetrics, nil
+	return nil
 }
