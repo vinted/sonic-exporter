@@ -107,7 +107,6 @@ func NewInterfaceCollector() *interfaceCollector {
 
 func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 	scrapeTime := time.Now()
-	// collector.scrapeMetrics(ch)
 	if time.Since(collector.lastScrapeTime) < cacheDuration {
 		// Return cached metrics without making redis calls
 		level.Info(logger).Log("msg", "Returning metrics from cache")
@@ -193,32 +192,27 @@ func (collector *interfaceCollector) collectInterfaceCounters(redisClient redis.
 	// Retrieve packet counters from redis database
 	counters, err := redisClient.HgetAllFromDb(ctx, "COUNTERS_DB", counterKey)
 	if err != nil {
-		level.Error(logger).Log("msg", "Redis read failed", "err", err)
-		return err
+		return fmt.Errorf("redis read failed: %w", err)
 	}
 
 	err = collector.collectInterfaceByteCounters(interfaceName, counters)
 	if err != nil {
-		level.Error(logger).Log("msg", "byte counters collection failed", "err", err)
-		return err
+		return fmt.Errorf("byte counters collection failed: %w", err)
 	}
 
 	err = collector.collectInterfaceErrCounters(interfaceName, counters)
 	if err != nil {
-		level.Error(logger).Log("msg", "err counters collection failed", "err", err)
-		return err
+		return fmt.Errorf("err counters collection failed: %w", err)
 	}
 
 	err = collector.collectInterfacePacketCounters(interfaceName, counters)
 	if err != nil {
-		level.Error(logger).Log("msg", "packet counters collection failed", "err", err)
-		return err
+		return fmt.Errorf("packet counters collection failed: %w", err)
 	}
 
 	err = collector.collectInterfacePacketSizeCounters(interfaceName, counters)
 	if err != nil {
-		level.Error(logger).Log("msg", "packet size counters collection failed", "err", err)
-		return err
+		return fmt.Errorf("packet size counters collection failed: %w", err)
 	}
 
 	return nil
@@ -234,8 +228,7 @@ func (collector *interfaceCollector) collectInterfaceInfo(redisClient redis.Clie
 
 	info, err := redisClient.HgetAllFromDb(ctx, "CONFIG_DB", interfaceKey)
 	if err != nil {
-		level.Error(logger).Log("msg", "Redis read failed", "err", err)
-		return err
+		return fmt.Errorf("redis read failed: %w", err)
 	}
 
 	description, ok := info["description"]
@@ -245,14 +238,12 @@ func (collector *interfaceCollector) collectInterfaceInfo(redisClient redis.Clie
 
 	mtu, err := strconv.ParseFloat(info["mtu"], 64)
 	if err != nil {
-		level.Error(logger).Log("msg", "Value parse failed", "err", err, "key", interfaceKey, "subKey", "mtu")
-		return err
+		return fmt.Errorf("value parse failed: %w", err)
 	}
 
 	speed, err := strconv.ParseFloat(info["speed"], 64)
 	if err != nil {
-		level.Error(logger).Log("msg", "Value parse failed", "err", err, "key", interfaceKey, "subKey", "speed")
-		return err
+		return fmt.Errorf("value parse failed: %w", err)
 	}
 
 	collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
@@ -274,8 +265,7 @@ func (collector *interfaceCollector) collectInterfaceByteCounters(interfaceName 
 	for _, direction := range []string{"in", "out"} {
 		bytes, err := strconv.ParseFloat(counters[fmt.Sprintf(interfaceByteCountKey, strings.ToUpper(direction))], 64)
 		if err != nil {
-			level.Error(logger).Log("msg", "Value parse failed", "err", err)
-			return err
+			return fmt.Errorf("value parse failed: %w", err)
 		}
 
 		switch direction {
@@ -302,8 +292,7 @@ func (collector *interfaceCollector) collectInterfaceErrCounters(interfaceName s
 		for errType, key := range interfaceErrorTypeMap[direction] {
 			packets, err := strconv.ParseFloat(counters[key], 64)
 			if err != nil {
-				level.Error(logger).Log("msg", "Value parse failed", "err", err)
-				return err
+				return fmt.Errorf("value parse failed: %w", err)
 			}
 
 			switch direction {
@@ -331,8 +320,7 @@ func (collector *interfaceCollector) collectInterfacePacketCounters(interfaceNam
 		for _, method := range []string{"ucast", "broadcast", "multicast"} {
 			packets, err := strconv.ParseFloat(counters[fmt.Sprintf(interfacePacketCountKey, strings.ToUpper(direction), strings.ToUpper(method))], 64)
 			if err != nil {
-				level.Error(logger).Log("msg", "Value parse failed", "err", err)
-				return err
+				return fmt.Errorf("value parse failed: %w", err)
 			}
 
 			switch direction {
@@ -362,8 +350,7 @@ func (collector *interfaceCollector) collectInterfacePacketSizeCounters(interfac
 		for size, key = range interfacePacketSizeKeyMap {
 			bytes, err := strconv.ParseFloat(counters[fmt.Sprintf(key, strings.ToUpper(direction))], 64)
 			if err != nil {
-				level.Error(logger).Log("msg", "Value parse failed", "err", err)
-				return err
+				return fmt.Errorf("value parse failed: %w", err)
 			}
 
 			switch direction {
