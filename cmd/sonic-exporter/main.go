@@ -33,7 +33,7 @@ func main() {
 	level.Info(logger).Log("msg", "Starting sonic-exporter", "version", version.Info())
 	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
 
-	interfaceCollector := collector.NewInterfaceCollector()
+	interfaceCollector := collector.NewInterfaceCollector(logger)
 	prometheus.MustRegister(interfaceCollector)
 
 	http.Handle(*metricsPath, promhttp.Handler())

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/promlog"
 	"github.com/vinted/sonic-exporter/pkg/redis"
 )
 
@@ -18,8 +18,6 @@ const (
 	subsystem     = "interface"
 	cacheDuration = 15 * time.Second
 )
-
-var logger = promlog.New(&promlog.Config{})
 
 var interfaceErrorTypeMap = map[string]map[string]string{
 	"in": {
@@ -58,9 +56,10 @@ type interfaceCollector struct {
 	scrapeCollectorSuccess           *prometheus.Desc
 	cachedMetrics                    []prometheus.Metric
 	lastScrapeTime                   time.Time
+	logger                           log.Logger
 }
 
-func NewInterfaceCollector() *interfaceCollector {
+func NewInterfaceCollector(logger log.Logger) *interfaceCollector {
 	return &interfaceCollector{
 		interfaceInfo: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "info"),
 			"Non-numeric data about interface, value is always 1", []string{"device", "alias", "index", "description"}, nil),
@@ -88,6 +87,7 @@ func NewInterfaceCollector() *interfaceCollector {
 			"Time it took for prometheus to scrape sonic metrics", nil, nil),
 		scrapeCollectorSuccess: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "collector_success"),
 			"Whether interface collector succeeded", nil, nil),
+		logger: logger,
 	}
 }
 
@@ -96,7 +96,7 @@ func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 	scrapeSuccess := 1.0
 	if time.Since(collector.lastScrapeTime) < cacheDuration {
 		// Return cached metrics without making redis calls
-		level.Info(logger).Log("msg", "Returning metrics from cache")
+		level.Info(collector.logger).Log("msg", "Returning metrics from cache")
 
 		for _, metric := range collector.cachedMetrics {
 			ch <- metric
@@ -119,7 +119,7 @@ func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (collector *interfaceCollector) scrapeMetrics() error {
-	level.Info(logger).Log("msg", "Starting metric scrape")
+	level.Info(collector.logger).Log("msg", "Starting metric scrape")
 	var ctx = context.Background()
 
 	redisClient, err := redis.NewClient()
@@ -147,10 +147,9 @@ func (collector *interfaceCollector) scrapeMetrics() error {
 		if err != nil {
 			return fmt.Errorf("interface info collection failed: %w", err)
 		}
-
 	}
 
-	level.Info(logger).Log("msg", "Ending metric scrape")
+	level.Info(collector.logger).Log("msg", "Ending metric scrape")
 
 	collector.lastScrapeTime = time.Now()
 
