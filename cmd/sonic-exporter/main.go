@@ -10,7 +10,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
-	"github.com/prometheus/common/version"
 	"github.com/prometheus/exporter-toolkit/web"
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
 	"github.com/vinted/sonic-exporter/internal/collector"
@@ -23,15 +22,12 @@ func main() {
 	)
 
 	promlogConfig := &promlog.Config{}
-	logger := promlog.New(promlogConfig)
 	flag.AddFlags(kingpin.CommandLine, promlogConfig)
 	kingpin.HelpFlag.Short('h')
-	kingpin.Version(version.Print("sonic-exporter"))
 	kingpin.CommandLine.UsageWriter(os.Stdout)
 	kingpin.Parse()
 
-	level.Info(logger).Log("msg", "Starting sonic-exporter", "version", version.Info())
-	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
+	logger := promlog.New(promlogConfig)
 
 	interfaceCollector := collector.NewInterfaceCollector(logger)
 	prometheus.MustRegister(interfaceCollector)
