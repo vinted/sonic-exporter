@@ -19,10 +19,7 @@ const (
 	cacheDuration = 15 * time.Second
 )
 
-var (
-	ctx    = context.Background()
-	logger = promlog.New(&promlog.Config{})
-)
+var logger = promlog.New(&promlog.Config{})
 
 var interfaceErrorTypeMap = map[string]map[string]string{
 	"in": {
@@ -118,7 +115,10 @@ func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 
 func (collector *interfaceCollector) scrapeMetrics() {
 	level.Info(logger).Log("msg", "Starting metric scrape")
-	var scrapeSuccess = 1.0
+	var (
+		scrapeSuccess = 1.0
+		ctx           = context.Background()
+	)
 
 	redisClient, err := redis.NewClient()
 	if err != nil {
@@ -176,7 +176,10 @@ func (collector *interfaceCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (collector *interfaceCollector) collectInterfaceCounters(redisClient redis.Client, interfaceName, counterKey string) error {
-	var counters map[string]string
+	var (
+		counters map[string]string
+		ctx      = context.Background()
+	)
 
 	// Retrieve packet counters from redis database
 	counters, err := redisClient.HgetAllFromDb(ctx, "COUNTERS_DB", counterKey)
@@ -209,7 +212,10 @@ func (collector *interfaceCollector) collectInterfaceCounters(redisClient redis.
 }
 
 func (collector *interfaceCollector) collectInterfaceInfo(redisClient redis.Client, interfaceName string) error {
-	var interfaceKey string = fmt.Sprintf("PORTCHANNEL|%s", interfaceName)
+	var (
+		interfaceKey string = fmt.Sprintf("PORTCHANNEL|%s", interfaceName)
+		ctx                 = context.Background()
+	)
 
 	if strings.HasPrefix(interfaceName, "Ethernet") {
 		interfaceKey = fmt.Sprintf("PORT|%s", interfaceName)
