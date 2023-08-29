@@ -108,7 +108,6 @@ func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 		for _, metric := range collector.cachedMetrics {
 			ch <- metric
 		}
-		ch <- prometheus.MustNewConstMetric(collector.scrapeDuration, prometheus.GaugeValue, time.Since(scrapeTime).Seconds())
 		return
 	}
 
@@ -162,7 +161,6 @@ func (collector *interfaceCollector) scrapeMetrics(ctx context.Context) error {
 	collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 		collector.scrapeDuration, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(),
 	))
-
 	return nil
 }
 
