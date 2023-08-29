@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-kit/log"
@@ -57,6 +58,7 @@ type interfaceCollector struct {
 	cachedMetrics                    []prometheus.Metric
 	lastScrapeTime                   time.Time
 	logger                           log.Logger
+	mu                               sync.Mutex
 }
 
 func NewInterfaceCollector(logger log.Logger) *interfaceCollector {
@@ -94,6 +96,10 @@ func NewInterfaceCollector(logger log.Logger) *interfaceCollector {
 func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 	scrapeTime := time.Now()
 	scrapeSuccess := 1.0
+
+	collector.mu.Lock()
+	defer collector.mu.Unlock()
+
 	if time.Since(collector.lastScrapeTime) < cacheDuration {
 		// Return cached metrics without making redis calls
 		level.Info(collector.logger).Log("msg", "Returning metrics from cache")
