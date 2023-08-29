@@ -97,6 +97,8 @@ func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 	scrapeTime := time.Now()
 	scrapeSuccess := 1.0
 
+	var ctx = context.Background()
+
 	collector.mu.Lock()
 	defer collector.mu.Unlock()
 
@@ -111,7 +113,7 @@ func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	err := collector.scrapeMetrics()
+	err := collector.scrapeMetrics(ctx)
 	if err != nil {
 		scrapeSuccess = 0
 		level.Error(collector.logger).Log("err", err)
@@ -125,9 +127,8 @@ func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(collector.scrapeDuration, prometheus.GaugeValue, time.Since(scrapeTime).Seconds())
 }
 
-func (collector *interfaceCollector) scrapeMetrics() error {
+func (collector *interfaceCollector) scrapeMetrics(ctx context.Context) error {
 	level.Info(collector.logger).Log("msg", "Starting metric scrape")
-	var ctx = context.Background()
 
 	redisClient, err := redis.NewClient()
 	if err != nil {
@@ -145,12 +146,12 @@ func (collector *interfaceCollector) scrapeMetrics() error {
 	for port := range ports {
 		counterKey := fmt.Sprintf("COUNTERS:%s", ports[port])
 
-		err := collector.collectInterfaceCounters(redisClient, port, counterKey)
+		err := collector.collectInterfaceCounters(ctx, redisClient, port, counterKey)
 		if err != nil {
 			return fmt.Errorf("interface counters collection failed: %w", err)
 		}
 
-		err = collector.collectInterfaceInfo(redisClient, port)
+		err = collector.collectInterfaceInfo(ctx, redisClient, port)
 		if err != nil {
 			return fmt.Errorf("interface info collection failed: %w", err)
 		}
@@ -179,11 +180,8 @@ func (collector *interfaceCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.scrapeCollectorSuccess
 }
 
-func (collector *interfaceCollector) collectInterfaceCounters(redisClient redis.Client, interfaceName, counterKey string) error {
-	var (
-		counters map[string]string
-		ctx      = context.Background()
-	)
+func (collector *interfaceCollector) collectInterfaceCounters(ctx context.Context, redisClient redis.Client, interfaceName, counterKey string) error {
+	var counters map[string]string
 
 	// Retrieve packet counters from redis database
 	counters, err := redisClient.HgetAllFromDb(ctx, "COUNTERS_DB", counterKey)
@@ -215,11 +213,8 @@ func (collector *interfaceCollector) collectInterfaceCounters(redisClient redis.
 
 }
 
-func (collector *interfaceCollector) collectInterfaceInfo(redisClient redis.Client, interfaceName string) error {
-	var (
-		interfaceKey string = fmt.Sprintf("PORTCHANNEL|%s", interfaceName)
-		ctx                 = context.Background()
-	)
+func (collector *interfaceCollector) collectInterfaceInfo(ctx context.Context, redisClient redis.Client, interfaceName string) error {
+	var interfaceKey string = fmt.Sprintf("PORTCHANNEL|%s", interfaceName)
 
 	if strings.HasPrefix(interfaceName, "Ethernet") {
 		interfaceKey = fmt.Sprintf("PORT|%s", interfaceName)
