@@ -94,7 +94,6 @@ func NewInterfaceCollector(logger log.Logger) *interfaceCollector {
 }
 
 func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
-	scrapeTime := time.Now()
 	scrapeSuccess := 1.0
 
 	var ctx = context.Background()
@@ -124,11 +123,11 @@ func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	ch <- prometheus.MustNewConstMetric(collector.scrapeCollectorSuccess, prometheus.GaugeValue, scrapeSuccess)
-	ch <- prometheus.MustNewConstMetric(collector.scrapeDuration, prometheus.GaugeValue, time.Since(scrapeTime).Seconds())
 }
 
 func (collector *interfaceCollector) scrapeMetrics(ctx context.Context) error {
 	level.Info(collector.logger).Log("msg", "Starting metric scrape")
+	scrapeTime := time.Now()
 
 	redisClient, err := redis.NewClient()
 	if err != nil {
@@ -160,6 +159,9 @@ func (collector *interfaceCollector) scrapeMetrics(ctx context.Context) error {
 	level.Info(collector.logger).Log("msg", "Ending metric scrape")
 
 	collector.lastScrapeTime = time.Now()
+	collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
+		collector.scrapeDuration, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(),
+	))
 
 	return nil
 }
