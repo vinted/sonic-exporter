@@ -87,3 +87,24 @@ func (c Client) HgetAllFromDb(ctx context.Context, dbName, key string) (map[stri
 
 	return nil, errors.New("database not defined")
 }
+
+func (c Client) HsetToDb(ctx context.Context, dbName, key string, data map[string]string) error {
+	var client *redis.Client
+
+	_, ok := RedisDbId(dbName)
+
+	if ok {
+		client, ok = c.databases[dbName]
+
+		if !ok {
+			err := c.connect(dbName)
+			if err != nil {
+				return err
+			}
+
+			client = c.databases[dbName]
+		}
+		client.HSet(ctx, key, data)
+	}
+	return nil
+}
