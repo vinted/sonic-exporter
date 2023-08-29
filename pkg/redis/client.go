@@ -13,11 +13,19 @@ type Client struct {
 	config    RedisConfig
 }
 
-var redisDatabases = map[string]int{
-	"APPL_DB":     0,
-	"COUNTERS_DB": 2,
-	"CONFIG_DB":   4,
-	"STATE_DB":    6,
+func RedisDbId(name string) (int, bool) {
+	switch name {
+	case "APPL_DB":
+		return 0, true
+	case "COUNTERS_DB":
+		return 2, true
+	case "CONFIG_DB":
+		return 4, true
+	case "STATE_DB":
+		return 6, true
+	}
+
+	return 0, false
 }
 
 type RedisConfig struct {
@@ -42,21 +50,25 @@ func NewClient() (Client, error) {
 }
 
 func (c *Client) connect(dbName string) error {
-	c.databases[dbName] = redis.NewClient(&redis.Options{
-		Network:  c.config.Network,
-		Addr:     c.config.Address,
-		Password: c.config.Password,
-		DB:       redisDatabases[dbName],
-	})
+	dbId, ok := RedisDbId(dbName)
+	if ok {
+		c.databases[dbName] = redis.NewClient(&redis.Options{
+			Network:  c.config.Network,
+			Addr:     c.config.Address,
+			Password: c.config.Password,
+			DB:       dbId,
+		})
+		return nil
+	}
 
-	return nil
+	return errors.New("database not defined")
 }
 
 // Issue a HGETALL on key in a selected database
 func (c Client) HgetAllFromDb(ctx context.Context, dbName, key string) (map[string]string, error) {
 	var client *redis.Client
 
-	_, ok := redisDatabases[dbName]
+	_, ok := RedisDbId(dbName)
 
 	if ok {
 		client, ok = c.databases[dbName]
