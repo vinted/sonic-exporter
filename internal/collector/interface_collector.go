@@ -114,6 +114,7 @@ func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 	err := collector.scrapeMetrics()
 	if err != nil {
 		scrapeSuccess = 0
+		level.Error(collector.logger).Log("err", err)
 	}
 
 	for _, cachedMetric := range collector.cachedMetrics {
