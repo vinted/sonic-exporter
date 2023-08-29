@@ -1,0 +1,14 @@
+version: '3'
+services:
+  redis:
+    image: redis:6.0.16
+    ports:
+      - 6379:6379
+    volumes:
+      - ./fixtures/redis:/data
+  exporter:
+    build: .
+    ports:
+      - 9101:9101
+    environment:
+      - REDIS_ADDRESS=redis:6379
