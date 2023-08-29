@@ -20,25 +20,6 @@ const (
 	cacheDuration = 15 * time.Second
 )
 
-var interfaceErrorTypeMap = map[string]map[string]string{
-	"in": {
-		"error":   "SAI_PORT_STAT_IF_IN_ERRORS",
-		"discard": "SAI_PORT_STAT_IF_IN_DISCARDS",
-		"drop":    "SAI_PORT_STAT_IN_DROPPED_PKTS",
-		"pause":   "SAI_PORT_STAT_PAUSE_RX_PKTS",
-	},
-	"out": {
-		"error":   "SAI_PORT_STAT_IF_OUT_ERRORS",
-		"discard": "SAI_PORT_STAT_IF_OUT_DISCARDS",
-		"pause":   "SAI_PORT_STAT_PAUSE_TX_PKTS",
-	},
-}
-
-const (
-	interfaceByteCountKey   = "SAI_PORT_STAT_IF_%s_OCTETS"
-	interfacePacketCountKey = "SAI_PORT_STAT_IF_%s_%s_PKTS"
-)
-
 type packetSize string
 
 type interfaceCollector struct {
@@ -256,6 +237,8 @@ func (collector *interfaceCollector) collectInterfaceInfo(ctx context.Context, r
 }
 
 func (collector *interfaceCollector) collectInterfaceByteCounters(interfaceName string, counters map[string]string) error {
+	const interfaceByteCountKey = "SAI_PORT_STAT_IF_%s_OCTETS"
+
 	for _, direction := range []string{"in", "out"} {
 		bytes, err := strconv.ParseFloat(counters[fmt.Sprintf(interfaceByteCountKey, strings.ToUpper(direction))], 64)
 		if err != nil {
@@ -282,6 +265,20 @@ func (collector *interfaceCollector) collectInterfaceByteCounters(interfaceName 
 }
 
 func (collector *interfaceCollector) collectInterfaceErrCounters(interfaceName string, counters map[string]string) error {
+	var interfaceErrorTypeMap = map[string]map[string]string{
+		"in": {
+			"error":   "SAI_PORT_STAT_IF_IN_ERRORS",
+			"discard": "SAI_PORT_STAT_IF_IN_DISCARDS",
+			"drop":    "SAI_PORT_STAT_IN_DROPPED_PKTS",
+			"pause":   "SAI_PORT_STAT_PAUSE_RX_PKTS",
+		},
+		"out": {
+			"error":   "SAI_PORT_STAT_IF_OUT_ERRORS",
+			"discard": "SAI_PORT_STAT_IF_OUT_DISCARDS",
+			"pause":   "SAI_PORT_STAT_PAUSE_TX_PKTS",
+		},
+	}
+
 	for _, direction := range []string{"in", "out"} {
 		for errType, key := range interfaceErrorTypeMap[direction] {
 			packets, err := strconv.ParseFloat(counters[key], 64)
@@ -310,6 +307,8 @@ func (collector *interfaceCollector) collectInterfaceErrCounters(interfaceName s
 }
 
 func (collector *interfaceCollector) collectInterfacePacketCounters(interfaceName string, counters map[string]string) error {
+	const interfacePacketCountKey = "SAI_PORT_STAT_IF_%s_%s_PKTS"
+
 	for _, direction := range []string{"in", "out"} {
 		for _, method := range []string{"ucast", "broadcast", "multicast"} {
 			packets, err := strconv.ParseFloat(counters[fmt.Sprintf(interfacePacketCountKey, strings.ToUpper(direction), strings.ToUpper(method))], 64)
