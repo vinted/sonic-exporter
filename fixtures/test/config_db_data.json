@@ -1,0 +1,37 @@
+{
+  "id": "CONFIG_DB",
+  "data": {
+    "PORT|Ethernet0": {
+      "admin_status": "up",
+      "alias": "twentyfiveGigE1",
+      "index": "1",
+      "lanes": "3",
+      "mtu": "9100",
+      "speed": "25000"
+    },
+    "PORT|Ethernet39": {
+      "admin_status": "up",
+      "alias": "twentyfiveGigE40",
+      "index": "40",
+      "lanes": "3",
+      "mtu": "9100",
+      "speed": "25000"
+    },
+    "PORT|Ethernet72": {
+      "admin_status": "up",
+      "alias": "hundredGigE55",
+      "index": "55",
+      "lanes": "121,122,123,124",
+      "mtu": "9100",
+      "speed": "100000"
+    },
+    "PORT|Ethernet76": {
+      "admin_status": "up",
+      "alias": "hundredGigE56",
+      "index": "56",
+      "lanes": "125,126,127,128",
+      "mtu": "9100",
+      "speed": "100000"
+    }
+  }
+}
