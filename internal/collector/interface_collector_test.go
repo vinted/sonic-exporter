@@ -26,7 +26,7 @@ func populateRedisData() error {
 
 	redisClient, _ := redis.NewClient()
 
-	countersDbFile, _ := os.Open("../../fixtures/redis/counters_db_data.json")
+	countersDbFile, _ := os.Open("../../fixtures/test/counters_db_data.json")
 	defer countersDbFile.Close()
 
 	byteValue, err := io.ReadAll(countersDbFile)
@@ -45,7 +45,7 @@ func populateRedisData() error {
 		}
 	}
 
-	configDbFile, _ := os.Open("../../fixtures/redis/config_db_data.json")
+	configDbFile, _ := os.Open("../../fixtures/test/config_db_data.json")
 	defer configDbFile.Close()
 
 	byteValue, err = io.ReadAll(configDbFile)
