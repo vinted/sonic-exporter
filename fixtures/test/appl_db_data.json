@@ -1,0 +1,37 @@
+{
+  "id": "APPL_DB",
+  "data": {
+    "TRANSCEIVER_DOM_SENSOR|Ethernet0": {
+      "temperature": "25.639",
+      "voltage": "3.436",
+      "tx1power": "0.612",
+      "rx1power": "0.612",
+      "tx2power": "N/A",
+      "rx2power": "N/A"
+    },
+    "TRANSCEIVER_DOM_SENSOR|Ethernet39": {
+      "temperature": "27.629",
+      "voltage": "3.436",
+      "tx1power": "0.674",
+      "rx1power": "0.610",
+      "tx2power": "N/A",
+      "rx2power": "N/A"
+    },
+    "TRANSCEIVER_DOM_SENSOR|Ethernet72": {
+      "temperature": "26.312",
+      "voltage": "3.436",
+      "tx1power": "0.634",
+      "rx1power": "0.614",
+      "tx2power": "N/A",
+      "rx2power": "N/A"
+    },
+    "TRANSCEIVER_DOM_SENSOR|Ethernet76": {
+      "temperature": "24.932",
+      "voltage": "3.416",
+      "tx1power": "0.623",
+      "rx1power": "0.613",
+      "tx2power": "0.534",
+      "rx2power": "0.566"
+    }
+  }
+}
