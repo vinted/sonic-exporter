@@ -64,8 +64,7 @@ func (c *Client) connect(dbName string) error {
 	return errors.New("database not defined")
 }
 
-// Issue a HGETALL on key in a selected database
-func (c Client) HgetAllFromDb(ctx context.Context, dbName, key string) (map[string]string, error) {
+func (c *Client) selectClient(dbName string) (*redis.Client, error) {
 	var client *redis.Client
 
 	_, ok := RedisDbId(dbName)
@@ -81,30 +80,42 @@ func (c Client) HgetAllFromDb(ctx context.Context, dbName, key string) (map[stri
 
 			client = c.databases[dbName]
 		}
-		data, err := client.HGetAll(ctx, key).Result()
-		return data, err
+
+		return client, nil
 	}
 
 	return nil, errors.New("database not defined")
 }
 
-func (c Client) HsetToDb(ctx context.Context, dbName, key string, data map[string]string) error {
-	var client *redis.Client
-
-	_, ok := RedisDbId(dbName)
-
-	if ok {
-		client, ok = c.databases[dbName]
-
-		if !ok {
-			err := c.connect(dbName)
-			if err != nil {
-				return err
-			}
-
-			client = c.databases[dbName]
-		}
-		client.HSet(ctx, key, data)
+// Issue a HGETALL on key in a selected database
+func (c Client) HgetAllFromDb(ctx context.Context, dbName, key string) (map[string]string, error) {
+	client, err := c.selectClient(dbName)
+	if err != nil {
+		return nil, err
 	}
+
+	data, err := client.HGetAll(ctx, key).Result()
+	return data, err
+}
+
+func (c Client) HsetToDb(ctx context.Context, dbName, key string, data map[string]string) error {
+	client, err := c.selectClient(dbName)
+	if err != nil {
+		return err
+	}
+
+	client.HSet(ctx, key, data)
+
 	return nil
+}
+
+func (c Client) KeysFromDb(ctx context.Context, dbName, pattern string) ([]string, error) {
+	client, err := c.selectClient(dbName)
+	if err != nil {
+		return nil, err
+	}
+
+	keys, err := client.Keys(ctx, pattern).Result()
+
+	return keys, err
 }
