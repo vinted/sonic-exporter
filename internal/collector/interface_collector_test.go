@@ -19,46 +19,43 @@ type redisDatabase struct {
 }
 
 func populateRedisData() error {
-	var (
-		countersDatabase, configDatabase redisDatabase
-		ctx                              = context.Background()
-	)
+	var ctx = context.Background()
 
-	redisClient, _ := redis.NewClient()
-
-	countersDbFile, _ := os.Open("../../fixtures/test/counters_db_data.json")
-	defer countersDbFile.Close()
-
-	byteValue, err := io.ReadAll(countersDbFile)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(byteValue, &countersDatabase)
-	if err != nil {
-		return err
+	files := []string{
+		"../../fixtures/test/counters_db_data.json",
+		"../../fixtures/test/config_db_data.json",
+		"../../fixtures/test/appl_db_data.json",
 	}
 
-	for key, values := range countersDatabase.Data {
-		err := redisClient.HsetToDb(ctx, countersDatabase.DbId, key, values)
+	for _, file := range files {
+		err := pushDataFromFile(ctx, file)
 		if err != nil {
 			return err
 		}
 	}
 
-	configDbFile, _ := os.Open("../../fixtures/test/config_db_data.json")
-	defer configDbFile.Close()
+	return nil
+}
 
-	byteValue, err = io.ReadAll(configDbFile)
+func pushDataFromFile(ctx context.Context, fileName string) error {
+	var database redisDatabase
+
+	redisClient, _ := redis.NewClient()
+
+	file, _ := os.Open(fileName)
+	defer file.Close()
+
+	byteValue, err := io.ReadAll(file)
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(byteValue, &configDatabase)
+	err = json.Unmarshal(byteValue, &database)
 	if err != nil {
 		return err
 	}
 
-	for key, values := range configDatabase.Data {
-		err := redisClient.HsetToDb(ctx, configDatabase.DbId, key, values)
+	for key, values := range database.Data {
+		err := redisClient.HsetToDb(ctx, database.DbId, key, values)
 		if err != nil {
 			return err
 		}
@@ -83,6 +80,9 @@ func TestInterfaceCollector(t *testing.T) {
 	}
 
 	problems, _ := testutil.CollectAndLint(interfaceCollector)
+	metricCount := testutil.CollectAndCount(interfaceCollector)
+	t.Logf("metric count: %v", metricCount)
+
 	for _, problem := range problems {
 		t.Errorf("metric %v has a problem: %v", problem.Metric, problem.Text)
 	}
