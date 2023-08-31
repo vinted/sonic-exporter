@@ -34,13 +34,16 @@ func main() {
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`<html>
+		_, err := w.Write([]byte(`<html>
              <head><title>Sonic Exporter</title></head>
              <body>
              <h1>Sonic Exporter</h1>
              <p><a href='` + *metricsPath + `'>Metrics</a></p>
              </body>
              </html>`))
+		if err != nil {
+			level.Error(logger).Log("msg", "Error writing response")
+		}
 	})
 	srv := &http.Server{}
 	if err := web.ListenAndServe(srv, webConfig, logger); err != nil {

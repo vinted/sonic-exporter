@@ -1,6 +1,6 @@
 module github.com/vinted/sonic-exporter
 
-go 1.19
+go 1.21
 
 require (
 	github.com/alecthomas/kingpin/v2 v2.3.2
