@@ -1,7 +1,7 @@
 # ===========
 # Build stage
 # ===========
-FROM golang:1.19.12-alpine3.18 AS builder
+FROM golang:1.21.0-alpine3.18 AS builder
 
 WORKDIR /code
 
