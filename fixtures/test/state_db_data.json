@@ -1,0 +1,49 @@
+{
+  "id": "STATE_DB",
+  "data": {
+    "PSU_INFO|PSU 1": {
+      "presence": "true",
+      "status": "true",
+      "model": "0V1FD0A00",
+      "serial": "CNLOD00111111A",
+      "revision": "N/A",
+      "temp": "N/A",
+      "temp_threshold": "N/A",
+      "voltage": "12.4",
+      "voltage_min_threshold": "N/A",
+      "voltage_max_threshold": "N/A",
+      "current": "5.0",
+      "power": "60.0",
+      "power_warning_suppress_threshold": "N/A",
+      "power_critical_threshold": "N/A",
+      "power_overload": "false",
+      "is_replaceable": "false",
+      "input_current": "0.3",
+      "input_voltage": "233.2",
+      "max_power": "N/A",
+      "led_status": "N/A"
+    },
+    "PSU_INFO|PSU 2": {
+      "presence": "true",
+      "status": "true",
+      "model": "0V1FD0A00",
+      "serial": "CNLOD00111111B",
+      "revision": "N/A",
+      "temp": "N/A",
+      "temp_threshold": "N/A",
+      "voltage": "12.3",
+      "voltage_min_threshold": "N/A",
+      "voltage_max_threshold": "N/A",
+      "current": "5.0",
+      "power": "60.0",
+      "power_warning_suppress_threshold": "N/A",
+      "power_critical_threshold": "N/A",
+      "power_overload": "false",
+      "is_replaceable": "false",
+      "input_current": "0.3",
+      "input_voltage": "233.1",
+      "max_power": "N/A",
+      "led_status": "N/A"
+    }
+  }
+}

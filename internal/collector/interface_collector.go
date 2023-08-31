@@ -15,12 +15,6 @@ import (
 	"github.com/vinted/sonic-exporter/pkg/redis"
 )
 
-const (
-	namespace     = "sonic"
-	subsystem     = "interface"
-	cacheDuration = 15 * time.Second
-)
-
 type packetSize string
 
 type interfaceCollector struct {
@@ -50,6 +44,11 @@ type interfaceCollector struct {
 }
 
 func NewInterfaceCollector(logger log.Logger) *interfaceCollector {
+	const (
+		namespace = "sonic"
+		subsystem = "interface"
+	)
+
 	return &interfaceCollector{
 		interfaceInfo: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "info"),
 			"Non-numeric data about interface, value is always 1", []string{"device", "alias", "index", "description"}, nil),
@@ -86,7 +85,7 @@ func NewInterfaceCollector(logger log.Logger) *interfaceCollector {
 		interfaceReceivedBytes: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "receive_bytes_total"),
 			"Number of bytes received on an interface", []string{"device"}, nil),
 		scrapeDuration: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "scrape_duration_seconds"),
-			"Time it took for prometheus to scrape sonic metrics", nil, nil),
+			"Time it took for prometheus to scrape sonic interface metrics", nil, nil),
 		scrapeCollectorSuccess: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "collector_success"),
 			"Whether interface collector succeeded", nil, nil),
 		logger: logger,
@@ -94,6 +93,8 @@ func NewInterfaceCollector(logger log.Logger) *interfaceCollector {
 }
 
 func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
+	const cacheDuration = 15 * time.Second
+
 	scrapeSuccess := 1.0
 
 	var ctx = context.Background()
@@ -103,7 +104,7 @@ func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 
 	if time.Since(collector.lastScrapeTime) < cacheDuration {
 		// Return cached metrics without making redis calls
-		level.Info(collector.logger).Log("msg", "Returning metrics from cache")
+		level.Info(collector.logger).Log("msg", "Returning interface metrics from cache")
 
 		for _, metric := range collector.cachedMetrics {
 			ch <- metric
@@ -125,7 +126,7 @@ func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (collector *interfaceCollector) scrapeMetrics(ctx context.Context) error {
-	level.Info(collector.logger).Log("msg", "Starting metric scrape")
+	level.Info(collector.logger).Log("msg", "Starting interface metric scrape")
 	scrapeTime := time.Now()
 
 	redisClient, err := redis.NewClient()
@@ -161,7 +162,7 @@ func (collector *interfaceCollector) scrapeMetrics(ctx context.Context) error {
 		return fmt.Errorf("interface optical info collection failed: %w", err)
 	}
 
-	level.Info(collector.logger).Log("msg", "Ending metric scrape")
+	level.Info(collector.logger).Log("msg", "Ending interface metric scrape")
 
 	collector.lastScrapeTime = time.Now()
 	collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
