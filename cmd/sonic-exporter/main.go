@@ -30,7 +30,9 @@ func main() {
 	logger := promlog.New(promlogConfig)
 
 	interfaceCollector := collector.NewInterfaceCollector(logger)
+	hwCollector := collector.NewHwCollector(logger)
 	prometheus.MustRegister(interfaceCollector)
+	prometheus.MustRegister(hwCollector)
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
