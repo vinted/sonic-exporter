@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,6 +24,9 @@ type hwCollector struct {
 	hwPsuOperationalStatus    *prometheus.Desc
 	hwPsuAvailableStatus      *prometheus.Desc
 	hwPsuTemperatureCelsius   *prometheus.Desc
+	hwFanRpm                  *prometheus.Desc
+	hwFanOperationalStatus    *prometheus.Desc
+	hwFanAvailableStatus      *prometheus.Desc
 	scrapeDuration            *prometheus.Desc
 	scrapeCollectorSuccess    *prometheus.Desc
 	cachedMetrics             []prometheus.Metric
@@ -54,6 +58,12 @@ func NewHwCollector(logger log.Logger) *hwCollector {
 			"PSU availability status: not plugged in - 0, plugged in - 1", []string{"slot"}, nil),
 		hwPsuTemperatureCelsius: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "psu_temperature_celsius"),
 			"PSU temperature", []string{"slot"}, nil),
+		hwFanRpm: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "fan_rpm"),
+			"Fan RPM", []string{"name", "slot"}, nil),
+		hwFanOperationalStatus: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "fan_operational_status"),
+			"Fan operational status: 0(DOWN), 1(UP)", []string{"name", "slot"}, nil),
+		hwFanAvailableStatus: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "fan_available_status"),
+			"Fan availability status: not plugged in - 0, plugged in - 1", []string{"name", "slot"}, nil),
 		scrapeDuration: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "scrape_duration_seconds"),
 			"Time it took for prometheus to scrape sonic hw metrics", nil, nil),
 		scrapeCollectorSuccess: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "collector_success"),
@@ -71,7 +81,9 @@ func (collector *hwCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.hwPsuOperationalStatus
 	ch <- collector.hwPsuAvailableStatus
 	ch <- collector.hwPsuTemperatureCelsius
-
+	ch <- collector.hwFanRpm
+	ch <- collector.hwFanOperationalStatus
+	ch <- collector.hwFanAvailableStatus
 }
 
 func (collector *hwCollector) Collect(ch chan<- prometheus.Metric) {
@@ -120,6 +132,11 @@ func (collector *hwCollector) scrapeMetrics(ctx context.Context) error {
 	collector.cachedMetrics = []prometheus.Metric{}
 
 	err = collector.collectPsuInfo(ctx, redisClient)
+	if err != nil {
+		return fmt.Errorf("hw psu info collection failed: %w", err)
+	}
+
+	err = collector.collectFanInfo(ctx, redisClient)
 	if err != nil {
 		return fmt.Errorf("hw psu info collection failed: %w", err)
 	}
@@ -206,6 +223,65 @@ func (collector *hwCollector) collectPsuInfo(ctx context.Context, redisClient re
 		if err == nil {
 			collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 				collector.hwPsuTemperatureCelsius, prometheus.GaugeValue, temp, psuId,
+			))
+		}
+	}
+
+	return nil
+}
+
+func (collector *hwCollector) collectFanInfo(ctx context.Context, redisClient redis.Client) error {
+	const fanKeyPattern string = "FAN_INFO|*"
+	fanRegex := regexp.MustCompile(`(?i)FAN_INFO\|(PSU\d+|Fantray\d+)(\s|\-)(.+)`)
+
+	fanKeys, err := redisClient.KeysFromDb(ctx, "STATE_DB", fanKeyPattern)
+	if err != nil {
+		return err
+	}
+
+	for _, fanKey := range fanKeys {
+		// initialize default values
+		available_status := 0.0
+		operational_status := 0.0
+		fanSlot := "0"
+		fanName := strings.Split(fanKey, "|")[1]
+
+		// try to parse fan slot and name from redis key
+		if fanRegex.MatchString(fanKey) {
+			fanSlot = fanRegex.FindStringSubmatch(fanKey)[1]
+			fanName = fanRegex.FindStringSubmatch(fanKey)[3]
+		}
+
+		data, err := redisClient.HgetAllFromDb(ctx, "STATE_DB", fanKey)
+		if err != nil {
+			return err
+		}
+
+		// try to find fan slot name from data
+		if value, ok := data["drawer_name"]; ok {
+			if value != "N/A" {
+				fanSlot = value
+			}
+		}
+
+		if data["status"] == "true" {
+			operational_status = 1.0
+		}
+		collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
+			collector.hwFanOperationalStatus, prometheus.GaugeValue, operational_status, fanName, fanSlot,
+		))
+
+		if data["presence"] == "true" {
+			available_status = 1.0
+		}
+		collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
+			collector.hwFanAvailableStatus, prometheus.GaugeValue, available_status, fanName, fanSlot,
+		))
+
+		fanRpm, err := strconv.ParseFloat(data["speed"], 64)
+		if err == nil {
+			collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
+				collector.hwFanRpm, prometheus.GaugeValue, fanRpm, fanName, fanSlot,
 			))
 		}
 	}

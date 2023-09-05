@@ -44,6 +44,58 @@
       "input_voltage": "233.1",
       "max_power": "N/A",
       "led_status": "N/A"
+    },
+    "FAN_INFO|PSU1 Fan": {
+      "presence": "True",
+      "status": "True",
+      "direction": "intake",
+      "speed": "35",
+      "led_status": "N/A",
+      "drawer_name": "N/A",
+      "model": "N/A",
+      "serial": "N/A",
+      "speed_tolerance": "N/A",
+      "speed_target": "N/A",
+      "is_replaceable": "False"
+    },
+    "FAN_INFO|PSU2 Fan": {
+      "presence": "True",
+      "status": "True",
+      "direction": "intake",
+      "speed": "32",
+      "led_status": "N/A",
+      "drawer_name": "N/A",
+      "model": "N/A",
+      "serial": "N/A",
+      "speed_tolerance": "N/A",
+      "speed_target": "N/A",
+      "is_replaceable": "False"
+    },
+    "FAN_INFO|FanTray3-Fan2": {
+      "presence": "True",
+      "status": "True",
+      "direction": "intake",
+      "speed": "36",
+      "led_status": "N/A",
+      "drawer_name": "FanTray3",
+      "model": "07R5RFA01",
+      "serial": "TH07R5RFCET00331111",
+      "speed_tolerance": "N/A",
+      "speed_target": "N/A",
+      "is_replaceable": "False"
+    },
+    "FAN_INFO|FanTray2-Fan1": {
+      "presence": "True",
+      "status": "True",
+      "direction": "intake",
+      "speed": "38",
+      "led_status": "N/A",
+      "drawer_name": "FanTray2",
+      "model": "07R5RFA01",
+      "serial": "TH07R5RFCET00332222",
+      "speed_tolerance": "N/A",
+      "speed_target": "N/A",
+      "is_replaceable": "False"
     }
   }
 }
