@@ -176,14 +176,14 @@ func (collector *hwCollector) collectPsuInfo(ctx context.Context, redisClient re
 			collector.hwPsuInfo, prometheus.GaugeValue, 1, psuId, serial, modelName, model,
 		))
 
-		if data["status"] == "true" {
+		if strings.ToLower(data["status"]) == "true" {
 			operational_status = 1.0
 		}
 		collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 			collector.hwPsuOperationalStatus, prometheus.GaugeValue, operational_status, psuId,
 		))
 
-		if data["presence"] == "true" {
+		if strings.ToLower(data["presence"]) == "true" {
 			available_status = 1.0
 		}
 		collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
@@ -264,14 +264,14 @@ func (collector *hwCollector) collectFanInfo(ctx context.Context, redisClient re
 			}
 		}
 
-		if data["status"] == "true" {
+		if strings.ToLower(data["status"]) == "true" {
 			operational_status = 1.0
 		}
 		collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 			collector.hwFanOperationalStatus, prometheus.GaugeValue, operational_status, fanName, fanSlot,
 		))
 
-		if data["presence"] == "true" {
+		if strings.ToLower(data["presence"]) == "true" {
 			available_status = 1.0
 		}
 		collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
