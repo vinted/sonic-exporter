@@ -1,0 +1,10 @@
+project_name: sonic-exporter
+builds:
+  - env: [CGO_ENABLED=0]
+    goos:
+      - linux
+    goarch:
+      - amd64
+    id: "sonic-exporter"
+    dir: .
+    main: ./cmd/sonic-exporter
