@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -80,11 +81,30 @@ func TestInterfaceCollector(t *testing.T) {
 		t.Errorf("failed to populate redis data: %v", err)
 	}
 
-	problems, _ := testutil.CollectAndLint(interfaceCollector)
+	problems, err := testutil.CollectAndLint(interfaceCollector)
+	if err != nil {
+		t.Error("metric lint completed with errors")
+	}
+
 	metricCount := testutil.CollectAndCount(interfaceCollector)
 	t.Logf("metric count: %v", metricCount)
 
 	for _, problem := range problems {
 		t.Errorf("metric %v has a problem: %v", problem.Metric, problem.Text)
+	}
+
+	metadata := `
+		# HELP sonic_interface_collector_success Whether interface collector succeeded
+		# TYPE sonic_interface_collector_success gauge
+	`
+
+	expected := `
+
+		sonic_interface_collector_success 1
+	`
+	success_metric := "sonic_interface_collector_success"
+
+	if err := testutil.CollectAndCompare(interfaceCollector, strings.NewReader(metadata+expected), success_metric); err != nil {
+		t.Errorf("unexpected collecting result:\n%s", err)
 	}
 }

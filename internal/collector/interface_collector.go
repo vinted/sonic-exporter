@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -117,12 +116,13 @@ func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 		scrapeSuccess = 0
 		level.Error(collector.logger).Log("err", err)
 	}
+	collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
+		collector.scrapeCollectorSuccess, prometheus.GaugeValue, scrapeSuccess,
+	))
 
 	for _, cachedMetric := range collector.cachedMetrics {
 		ch <- cachedMetric
 	}
-
-	ch <- prometheus.MustNewConstMetric(collector.scrapeCollectorSuccess, prometheus.GaugeValue, scrapeSuccess)
 }
 
 func (collector *interfaceCollector) scrapeMetrics(ctx context.Context) error {
@@ -257,12 +257,12 @@ func (collector *interfaceCollector) collectInterfaceConfigInfo(ctx context.Cont
 		description = ""
 	}
 
-	mtu, err := strconv.ParseFloat(info["mtu"], 64)
+	mtu, err := parseFloat(info["mtu"])
 	if err != nil {
 		return fmt.Errorf("value parse failed: %w", err)
 	}
 
-	speed, err := strconv.ParseFloat(info["speed"], 64)
+	speed, err := parseFloat(info["speed"])
 	if err != nil {
 		return fmt.Errorf("value parse failed: %w", err)
 	}
@@ -334,7 +334,7 @@ func (collector *interfaceCollector) collectInterfaceOpticalInfo(ctx context.Con
 		}
 
 		for metric, value := range data {
-			parsedValue, err := strconv.ParseFloat(value, 64)
+			parsedValue, err := parseFloat(value)
 			if err != nil {
 				continue
 			}
@@ -368,7 +368,7 @@ func (collector *interfaceCollector) collectInterfaceByteCounters(interfaceName 
 	const interfaceByteCountKey = "SAI_PORT_STAT_IF_%s_OCTETS"
 
 	for _, direction := range []string{"in", "out"} {
-		bytes, err := strconv.ParseFloat(counters[fmt.Sprintf(interfaceByteCountKey, strings.ToUpper(direction))], 64)
+		bytes, err := parseFloat(counters[fmt.Sprintf(interfaceByteCountKey, strings.ToUpper(direction))])
 		if err != nil {
 			return fmt.Errorf("value parse failed: %w", err)
 		}
@@ -409,7 +409,7 @@ func (collector *interfaceCollector) collectInterfaceErrCounters(interfaceName s
 
 	for _, direction := range []string{"in", "out"} {
 		for errType, key := range interfaceErrorTypeMap[direction] {
-			packets, err := strconv.ParseFloat(counters[key], 64)
+			packets, err := parseFloat(counters[key])
 			if err != nil {
 				return fmt.Errorf("value parse failed: %w", err)
 			}
@@ -439,7 +439,7 @@ func (collector *interfaceCollector) collectInterfacePacketCounters(interfaceNam
 
 	for _, direction := range []string{"in", "out"} {
 		for _, method := range []string{"ucast", "broadcast", "multicast"} {
-			packets, err := strconv.ParseFloat(counters[fmt.Sprintf(interfacePacketCountKey, strings.ToUpper(direction), strings.ToUpper(method))], 64)
+			packets, err := parseFloat(counters[fmt.Sprintf(interfacePacketCountKey, strings.ToUpper(direction), strings.ToUpper(method))])
 			if err != nil {
 				return fmt.Errorf("value parse failed: %w", err)
 			}
@@ -498,7 +498,7 @@ func (collector *interfaceCollector) collectInterfacePacketSizeCounters(interfac
 
 	for _, direction := range []string{"in", "out"} {
 		for _, size := range sizes {
-			bytes, err := strconv.ParseFloat(counters[size.format(direction)], 64)
+			bytes, err := parseFloat(counters[size.format(direction)])
 			if err != nil {
 				return fmt.Errorf("value parse failed: %w", err)
 			}
