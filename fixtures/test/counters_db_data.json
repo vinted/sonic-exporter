@@ -154,6 +154,32 @@
       "SAI_PORT_STAT_PAUSE_TX_PKTS": "2",
       "SAI_PORT_STAT_IF_IN_OCTETS": "123",
       "SAI_PORT_STAT_IF_OUT_OCTETS": "452"
+    },
+    "CRM:STATS": {
+      "crm_stats_dnat_entry_used": "0",
+      "crm_stats_fdb_entry_used": "5",
+      "crm_stats_ipmc_entry_used": "0",
+      "crm_stats_ipv4_neighbor_used": "18",
+      "crm_stats_ipv4_nexthop_used": "18",
+      "crm_stats_ipv4_route_used": "1610",
+      "crm_stats_ipv6_neighbor_used": "8",
+      "crm_stats_ipv6_nexthop_used": "8",
+      "crm_stats_ipv6_route_used": "3",
+      "crm_stats_nexthop_group_member_used": "3",
+      "crm_stats_nexthop_group_used": "1",
+      "crm_stats_snat_entry_used": "0",
+      "crm_stats_dnat_entry_available": "1023",
+      "crm_stats_fdb_entry_available": "65530",
+      "crm_stats_ipmc_entry_available": "24576",
+      "crm_stats_ipv4_neighbor_available": "49130",
+      "crm_stats_ipv4_nexthop_available": "65460",
+      "crm_stats_ipv4_route_available": "80299",
+      "crm_stats_ipv6_neighbor_available": "24565",
+      "crm_stats_ipv6_nexthop_available": "65460",
+      "crm_stats_ipv6_route_available": "32765",
+      "crm_stats_nexthop_group_available": "511",
+      "crm_stats_nexthop_group_member_available": "32765",
+      "crm_stats_snat_entry_available": "1023"
     }
   }
 }

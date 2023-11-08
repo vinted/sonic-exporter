@@ -151,3 +151,46 @@ func TestHwCollector(t *testing.T) {
 		t.Errorf("unexpected collecting result:\n%s", err)
 	}
 }
+
+func TestCrmCollector(t *testing.T) {
+	s := miniredis.RunT(t)
+
+	os.Setenv("REDIS_ADDRESS", s.Addr())
+
+	promlogConfig := &promlog.Config{}
+	logger := promlog.New(promlogConfig)
+
+	crmCollector := NewCrmCollector(logger)
+
+	err := populateRedisData()
+	if err != nil {
+		t.Errorf("failed to populate redis data: %v", err)
+	}
+
+	problems, err := testutil.CollectAndLint(crmCollector)
+	if err != nil {
+		t.Error("metric lint completed with errors")
+	}
+
+	metricCount := testutil.CollectAndCount(crmCollector)
+	t.Logf("metric count: %v", metricCount)
+
+	for _, problem := range problems {
+		t.Errorf("metric %v has a problem: %v", problem.Metric, problem.Text)
+	}
+
+	metadata := `
+		# HELP sonic_crm_collector_success Whether crm collector succeeded
+		# TYPE sonic_crm_collector_success gauge
+	`
+
+	expected := `
+
+	 sonic_crm_collector_success 1
+	`
+	success_metric := "sonic_crm_collector_success"
+
+	if err := testutil.CollectAndCompare(crmCollector, strings.NewReader(metadata+expected), success_metric); err != nil {
+		t.Errorf("unexpected collecting result:\n%s", err)
+	}
+}
