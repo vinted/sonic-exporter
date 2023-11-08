@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -191,35 +190,35 @@ func (collector *hwCollector) collectPsuInfo(ctx context.Context, redisClient re
 		))
 
 		// voltage, amperage and temperature metrics are appended only if values can be parsed
-		inVolts, err := strconv.ParseFloat(data["input_voltage"], 64)
+		inVolts, err := parseFloat(data["input_voltage"])
 		if err == nil {
 			collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 				collector.hwPsuInputVoltageVolts, prometheus.GaugeValue, inVolts, psuId,
 			))
 		}
 
-		inAmperes, err := strconv.ParseFloat(data["input_current"], 64)
+		inAmperes, err := parseFloat(data["input_current"])
 		if err == nil {
 			collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 				collector.hwPsuInputCurrentAmperes, prometheus.GaugeValue, inAmperes, psuId,
 			))
 		}
 
-		outVolts, err := strconv.ParseFloat(data["output_voltage"], 64)
+		outVolts, err := parseFloat(data["output_voltage"])
 		if err == nil {
 			collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 				collector.hwPsuOutputVoltageVolts, prometheus.GaugeValue, outVolts, psuId,
 			))
 		}
 
-		outAmperes, err := strconv.ParseFloat(data["output_current"], 64)
+		outAmperes, err := parseFloat(data["output_current"])
 		if err == nil {
 			collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 				collector.hwPsuOutputCurrentAmperes, prometheus.GaugeValue, outAmperes, psuId,
 			))
 		}
 
-		temp, err := strconv.ParseFloat(data["temp"], 64)
+		temp, err := parseFloat(data["temp"])
 		if err == nil {
 			collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 				collector.hwPsuTemperatureCelsius, prometheus.GaugeValue, temp, psuId,
@@ -278,7 +277,7 @@ func (collector *hwCollector) collectFanInfo(ctx context.Context, redisClient re
 			collector.hwFanAvailableStatus, prometheus.GaugeValue, available_status, fanName, fanSlot,
 		))
 
-		fanRpm, err := strconv.ParseFloat(data["speed"], 64)
+		fanRpm, err := parseFloat(data["speed"])
 		if err == nil {
 			collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 				collector.hwFanRpm, prometheus.GaugeValue, fanRpm, fanName, fanSlot,
