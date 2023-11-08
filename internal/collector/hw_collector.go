@@ -83,6 +83,8 @@ func (collector *hwCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.hwFanRpm
 	ch <- collector.hwFanOperationalStatus
 	ch <- collector.hwFanAvailableStatus
+	ch <- collector.scrapeDuration
+	ch <- collector.scrapeCollectorSuccess
 }
 
 func (collector *hwCollector) Collect(ch chan<- prometheus.Metric) {
@@ -110,12 +112,13 @@ func (collector *hwCollector) Collect(ch chan<- prometheus.Metric) {
 		scrapeSuccess = 0
 		level.Error(collector.logger).Log("err", err)
 	}
+	collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
+		collector.scrapeCollectorSuccess, prometheus.GaugeValue, scrapeSuccess,
+	))
 
 	for _, cachedMetric := range collector.cachedMetrics {
 		ch <- cachedMetric
 	}
-
-	ch <- prometheus.MustNewConstMetric(collector.scrapeCollectorSuccess, prometheus.GaugeValue, scrapeSuccess)
 }
 
 func (collector *hwCollector) scrapeMetrics(ctx context.Context) error {

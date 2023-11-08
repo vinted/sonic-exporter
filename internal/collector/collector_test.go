@@ -108,3 +108,46 @@ func TestInterfaceCollector(t *testing.T) {
 		t.Errorf("unexpected collecting result:\n%s", err)
 	}
 }
+
+func TestHwCollector(t *testing.T) {
+	s := miniredis.RunT(t)
+
+	os.Setenv("REDIS_ADDRESS", s.Addr())
+
+	promlogConfig := &promlog.Config{}
+	logger := promlog.New(promlogConfig)
+
+	hwCollector := NewHwCollector(logger)
+
+	err := populateRedisData()
+	if err != nil {
+		t.Errorf("failed to populate redis data: %v", err)
+	}
+
+	problems, err := testutil.CollectAndLint(hwCollector)
+	if err != nil {
+		t.Error("metric lint completed with errors")
+	}
+
+	metricCount := testutil.CollectAndCount(hwCollector)
+	t.Logf("metric count: %v", metricCount)
+
+	for _, problem := range problems {
+		t.Errorf("metric %v has a problem: %v", problem.Metric, problem.Text)
+	}
+
+	metadata := `
+		# HELP sonic_hw_collector_success Whether hw collector succeeded
+		# TYPE sonic_hw_collector_success gauge
+	`
+
+	expected := `
+
+	 sonic_hw_collector_success 1
+	`
+	success_metric := "sonic_hw_collector_success"
+
+	if err := testutil.CollectAndCompare(hwCollector, strings.NewReader(metadata+expected), success_metric); err != nil {
+		t.Errorf("unexpected collecting result:\n%s", err)
+	}
+}
