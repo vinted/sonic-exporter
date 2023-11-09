@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log"
 	"os"
 	"strings"
 	"testing"
@@ -66,20 +67,32 @@ func pushDataFromFile(ctx context.Context, fileName string) error {
 	return nil
 }
 
-func TestInterfaceCollector(t *testing.T) {
-	s := miniredis.RunT(t)
+func TestMain(m *testing.M) {
+	s, err := miniredis.Run()
+	if err != nil {
+		log.Printf("failed to start redis: %v", err)
+		os.Exit(1)
+	}
 
 	os.Setenv("REDIS_ADDRESS", s.Addr())
+	err = populateRedisData()
+	if err != nil {
+		log.Printf("failed to populate redis data: %v", err)
+		os.Exit(1)
+	}
 
+	exitCode := m.Run()
+
+	s.Close()
+	os.Unsetenv("REDIS_ADDRESS")
+	os.Exit(exitCode)
+}
+
+func TestInterfaceCollector(t *testing.T) {
 	promlogConfig := &promlog.Config{}
 	logger := promlog.New(promlogConfig)
 
 	interfaceCollector := NewInterfaceCollector(logger)
-
-	err := populateRedisData()
-	if err != nil {
-		t.Errorf("failed to populate redis data: %v", err)
-	}
 
 	problems, err := testutil.CollectAndLint(interfaceCollector)
 	if err != nil {
@@ -110,19 +123,10 @@ func TestInterfaceCollector(t *testing.T) {
 }
 
 func TestHwCollector(t *testing.T) {
-	s := miniredis.RunT(t)
-
-	os.Setenv("REDIS_ADDRESS", s.Addr())
-
 	promlogConfig := &promlog.Config{}
 	logger := promlog.New(promlogConfig)
 
 	hwCollector := NewHwCollector(logger)
-
-	err := populateRedisData()
-	if err != nil {
-		t.Errorf("failed to populate redis data: %v", err)
-	}
 
 	problems, err := testutil.CollectAndLint(hwCollector)
 	if err != nil {
@@ -153,19 +157,10 @@ func TestHwCollector(t *testing.T) {
 }
 
 func TestCrmCollector(t *testing.T) {
-	s := miniredis.RunT(t)
-
-	os.Setenv("REDIS_ADDRESS", s.Addr())
-
 	promlogConfig := &promlog.Config{}
 	logger := promlog.New(promlogConfig)
 
 	crmCollector := NewCrmCollector(logger)
-
-	err := populateRedisData()
-	if err != nil {
-		t.Errorf("failed to populate redis data: %v", err)
-	}
 
 	problems, err := testutil.CollectAndLint(crmCollector)
 	if err != nil {
