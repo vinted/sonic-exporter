@@ -134,6 +134,8 @@ func (collector *interfaceCollector) scrapeMetrics(ctx context.Context) error {
 		return fmt.Errorf("redis client initialization failed: %w", err)
 	}
 
+	defer redisClient.Close()
+
 	// Reset metrics
 	collector.cachedMetrics = []prometheus.Metric{}
 
