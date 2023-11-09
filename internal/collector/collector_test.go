@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log"
 	"os"
 	"strings"
 	"testing"
@@ -66,20 +67,32 @@ func pushDataFromFile(ctx context.Context, fileName string) error {
 	return nil
 }
 
-func TestInterfaceCollector(t *testing.T) {
-	s := miniredis.RunT(t)
+func TestMain(m *testing.M) {
+	s, err := miniredis.Run()
+	if err != nil {
+		log.Printf("failed to start redis: %v", err)
+		os.Exit(1)
+	}
 
 	os.Setenv("REDIS_ADDRESS", s.Addr())
+	err = populateRedisData()
+	if err != nil {
+		log.Printf("failed to populate redis data: %v", err)
+		os.Exit(1)
+	}
 
+	exitCode := m.Run()
+
+	s.Close()
+	os.Unsetenv("REDIS_ADDRESS")
+	os.Exit(exitCode)
+}
+
+func TestInterfaceCollector(t *testing.T) {
 	promlogConfig := &promlog.Config{}
 	logger := promlog.New(promlogConfig)
 
 	interfaceCollector := NewInterfaceCollector(logger)
-
-	err := populateRedisData()
-	if err != nil {
-		t.Errorf("failed to populate redis data: %v", err)
-	}
 
 	problems, err := testutil.CollectAndLint(interfaceCollector)
 	if err != nil {
@@ -110,19 +123,10 @@ func TestInterfaceCollector(t *testing.T) {
 }
 
 func TestHwCollector(t *testing.T) {
-	s := miniredis.RunT(t)
-
-	os.Setenv("REDIS_ADDRESS", s.Addr())
-
 	promlogConfig := &promlog.Config{}
 	logger := promlog.New(promlogConfig)
 
 	hwCollector := NewHwCollector(logger)
-
-	err := populateRedisData()
-	if err != nil {
-		t.Errorf("failed to populate redis data: %v", err)
-	}
 
 	problems, err := testutil.CollectAndLint(hwCollector)
 	if err != nil {
@@ -148,6 +152,40 @@ func TestHwCollector(t *testing.T) {
 	success_metric := "sonic_hw_collector_success"
 
 	if err := testutil.CollectAndCompare(hwCollector, strings.NewReader(metadata+expected), success_metric); err != nil {
+		t.Errorf("unexpected collecting result:\n%s", err)
+	}
+}
+
+func TestCrmCollector(t *testing.T) {
+	promlogConfig := &promlog.Config{}
+	logger := promlog.New(promlogConfig)
+
+	crmCollector := NewCrmCollector(logger)
+
+	problems, err := testutil.CollectAndLint(crmCollector)
+	if err != nil {
+		t.Error("metric lint completed with errors")
+	}
+
+	metricCount := testutil.CollectAndCount(crmCollector)
+	t.Logf("metric count: %v", metricCount)
+
+	for _, problem := range problems {
+		t.Errorf("metric %v has a problem: %v", problem.Metric, problem.Text)
+	}
+
+	metadata := `
+		# HELP sonic_crm_collector_success Whether crm collector succeeded
+		# TYPE sonic_crm_collector_success gauge
+	`
+
+	expected := `
+
+	 sonic_crm_collector_success 1
+	`
+	success_metric := "sonic_crm_collector_success"
+
+	if err := testutil.CollectAndCompare(crmCollector, strings.NewReader(metadata+expected), success_metric); err != nil {
 		t.Errorf("unexpected collecting result:\n%s", err)
 	}
 }

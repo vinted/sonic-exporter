@@ -119,3 +119,10 @@ func (c Client) KeysFromDb(ctx context.Context, dbName, pattern string) ([]strin
 
 	return keys, err
 }
+
+func (c Client) Close() {
+	for name, client := range c.databases {
+		client.Close()
+		delete(c.databases, name)
+	}
+}
