@@ -96,6 +96,11 @@
       "speed_tolerance": "N/A",
       "speed_target": "N/A",
       "is_replaceable": "False"
+    },
+    "CHASSIS_INFO|chassis 1": {
+      "psu_num": "2",
+      "serial": "123456",
+      "model": "006Y6V"
     }
   }
 }
