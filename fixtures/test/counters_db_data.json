@@ -180,6 +180,66 @@
       "crm_stats_nexthop_group_available": "511",
       "crm_stats_nexthop_group_member_available": "32765",
       "crm_stats_snat_entry_available": "1023"
+    },
+    "CRM:ACL_STATS:EGRESS:SWITCH": {
+      "crm_stats_acl_group_used": "0",
+      "crm_stats_acl_table_used": "0",
+      "crm_stats_acl_group_available": "1024",
+      "crm_stats_acl_table_available": "2"
+    },
+    "CRM:ACL_STATS:EGRESS:RIF": {
+      "crm_stats_acl_group_used": "0",
+      "crm_stats_acl_table_used": "0",
+      "crm_stats_acl_group_available": "1024",
+      "crm_stats_acl_table_available": "2"
+    },
+    "CRM:ACL_STATS:EGRESS:LAG": {
+      "crm_stats_acl_group_used": "0",
+      "crm_stats_acl_table_used": "0",
+      "crm_stats_acl_group_available": "1024",
+      "crm_stats_acl_table_available": "3"
+    },
+    "CRM:ACL_STATS:EGRESS:VLAN": {
+      "crm_stats_acl_group_used": "0",
+      "crm_stats_acl_table_used": "0",
+      "crm_stats_acl_group_available": "1024",
+      "crm_stats_acl_table_available": "2"
+    },
+    "CRM:ACL_STATS:EGRESS:PORT": {
+      "crm_stats_acl_group_used": "0",
+      "crm_stats_acl_table_used": "0",
+      "crm_stats_acl_group_available": "1024",
+      "crm_stats_acl_table_available": "2"
+    },
+    "CRM:ACL_STATS:INGRESS:SWITCH": {
+      "crm_stats_acl_group_used": "0",
+      "crm_stats_acl_table_used": "0",
+      "crm_stats_acl_group_available": "1024",
+      "crm_stats_acl_table_available": "10"
+    },
+    "CRM:ACL_STATS:INGRESS:RIF": {
+      "crm_stats_acl_group_used": "0",
+      "crm_stats_acl_table_used": "0",
+      "crm_stats_acl_group_available": "1024",
+      "crm_stats_acl_table_available": "10"
+    },
+    "CRM:ACL_STATS:INGRESS:LAG": {
+      "crm_stats_acl_group_used": "0",
+      "crm_stats_acl_table_used": "0",
+      "crm_stats_acl_group_available": "1024",
+      "crm_stats_acl_table_available": "3"
+    },
+    "CRM:ACL_STATS:INGRESS:VLAN": {
+      "crm_stats_acl_group_used": "0",
+      "crm_stats_acl_table_used": "0",
+      "crm_stats_acl_group_available": "1024",
+      "crm_stats_acl_table_available": "10"
+    },
+    "CRM:ACL_STATS:INGRESS:PORT": {
+      "crm_stats_acl_group_used": "0",
+      "crm_stats_acl_table_used": "0",
+      "crm_stats_acl_group_available": "1024",
+      "crm_stats_acl_table_available": "2"
     }
   }
 }
