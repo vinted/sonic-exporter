@@ -26,6 +26,7 @@ type hwCollector struct {
 	hwFanRpm                  *prometheus.Desc
 	hwFanOperationalStatus    *prometheus.Desc
 	hwFanAvailableStatus      *prometheus.Desc
+	hwChassisInfo             *prometheus.Desc
 	scrapeDuration            *prometheus.Desc
 	scrapeCollectorSuccess    *prometheus.Desc
 	cachedMetrics             []prometheus.Metric
@@ -63,6 +64,8 @@ func NewHwCollector(logger log.Logger) *hwCollector {
 			"Fan operational status: 0(DOWN), 1(UP)", []string{"name", "slot"}, nil),
 		hwFanAvailableStatus: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "fan_available_status"),
 			"Fan availability status: not plugged in - 0, plugged in - 1", []string{"name", "slot"}, nil),
+		hwChassisInfo: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "chassis_info"),
+			"Non-numeric data about chassis, value is always 1", []string{"name", "psu_num", "serial", "model"}, nil),
 		scrapeDuration: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "scrape_duration_seconds"),
 			"Time it took for prometheus to scrape sonic hw metrics", nil, nil),
 		scrapeCollectorSuccess: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "collector_success"),
@@ -83,6 +86,7 @@ func (collector *hwCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.hwFanRpm
 	ch <- collector.hwFanOperationalStatus
 	ch <- collector.hwFanAvailableStatus
+	ch <- collector.hwChassisInfo
 	ch <- collector.scrapeDuration
 	ch <- collector.scrapeCollectorSuccess
 }
@@ -143,6 +147,11 @@ func (collector *hwCollector) scrapeMetrics(ctx context.Context) error {
 	err = collector.collectFanInfo(ctx, redisClient)
 	if err != nil {
 		return fmt.Errorf("hw psu info collection failed: %w", err)
+	}
+
+	err = collector.collectChassisInfo(ctx, redisClient)
+	if err != nil {
+		return fmt.Errorf("hw chassis info collection failed: %w", err)
 	}
 
 	level.Info(collector.logger).Log("msg", "Ending hw metric scrape")
@@ -288,6 +297,34 @@ func (collector *hwCollector) collectFanInfo(ctx context.Context, redisClient re
 				collector.hwFanRpm, prometheus.GaugeValue, fanRpm, fanName, fanSlot,
 			))
 		}
+	}
+
+	return nil
+}
+
+func (collector *hwCollector) collectChassisInfo(ctx context.Context, redisClient redis.Client) error {
+	const chassisKeyPattern string = "CHASSIS_INFO|*"
+
+	chasisKeys, err := redisClient.KeysFromDb(ctx, "STATE_DB", chassisKeyPattern)
+	if err != nil {
+		return err
+	}
+
+	for _, chassisKey := range chasisKeys {
+		chassisId := strings.Split(chassisKey, "|")[1]
+
+		data, err := redisClient.HgetAllFromDb(ctx, "STATE_DB", chassisKey)
+		if err != nil {
+			return err
+		}
+
+		psuNum := data["psu_num"]
+		serial := data["serial"]
+		model := data["model"]
+
+		collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
+			collector.hwChassisInfo, prometheus.GaugeValue, 1, chassisId, psuNum, serial, model,
+		))
 	}
 
 	return nil
