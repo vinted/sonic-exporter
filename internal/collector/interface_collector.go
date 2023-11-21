@@ -75,7 +75,7 @@ func NewInterfaceCollector(logger log.Logger) *interfaceCollector {
 			"Number of bytes transmitted on an interface", []string{"device"}, nil),
 		interfaceOpticReceivePower: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "optic_receive_power_dbm"),
 			"Network device transceiver voltage", []string{"device", "unit"}, nil),
-		interfaceReceiveEthernetPackets: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "receivd_ethernet_packets_total"),
+		interfaceReceiveEthernetPackets: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "receive_ethernet_packets_total"),
 			"Number of ethernet packets received on an interface", []string{"device", "size"}, nil),
 		interfaceReceivePackets: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "receive_packets_total"),
 			"Number of packets received on an interface", []string{"device", "method"}, nil),
