@@ -6,6 +6,7 @@ Currently supported collectors:
 - [HW collector](internal/collector/hw_collector.go): collects metrics about PSU and Fan operation
 - [Interface collector](internal/collector/interface_collector.go): collect metrics about interface operation and performance.
 - [CRM collector](internal/collector/hw_collector.go): collects Critial Resource Monitoring metrics.
+- [Queue collector](internal/collector/queue_collector.go): collects metrics about queues.
 
 # Usage
 
