@@ -189,3 +189,37 @@ func TestCrmCollector(t *testing.T) {
 		t.Errorf("unexpected collecting result:\n%s", err)
 	}
 }
+
+func TestQueueCollector(t *testing.T) {
+	promlogConfig := &promlog.Config{}
+	logger := promlog.New(promlogConfig)
+
+	queueCollector := NewQueueCollector(logger)
+
+	problems, err := testutil.CollectAndLint(queueCollector)
+	if err != nil {
+		t.Error("metric lint completed with errors")
+	}
+
+	metricCount := testutil.CollectAndCount(queueCollector)
+	t.Logf("metric count: %v", metricCount)
+
+	for _, problem := range problems {
+		t.Errorf("metric %v has a problem: %v", problem.Metric, problem.Text)
+	}
+
+	metadata := `
+		# HELP sonic_queue_collector_success Whether queue collector succeeded
+		# TYPE sonic_queue_collector_success gauge
+	`
+
+	expected := `
+
+	 sonic_queue_collector_success 1
+	`
+	success_metric := "sonic_queue_collector_success"
+
+	if err := testutil.CollectAndCompare(queueCollector, strings.NewReader(metadata+expected), success_metric); err != nil {
+		t.Errorf("unexpected collecting result:\n%s", err)
+	}
+}
