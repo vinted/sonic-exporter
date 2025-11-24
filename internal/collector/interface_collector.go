@@ -318,11 +318,11 @@ func (collector *interfaceCollector) collectInterfaceOperationInfo(ctx context.C
 func (collector *interfaceCollector) collectInterfaceOpticalInfo(ctx context.Context, redisClient redis.Client) error {
 	const transceiverKeyPattern string = "TRANSCEIVER_DOM_SENSOR|*"
 	var (
-		rxPowerRegex = regexp.MustCompile(`^rx(\d*)power`)
-		txPowerRegex = regexp.MustCompile(`^tx(\d*)power`)
+		rxPowerRegex = regexp.MustCompile(`^rx(\d*)power$`)
+		txPowerRegex = regexp.MustCompile(`^tx(\d*)power$`)
 	)
 
-	transceiverKeys, err := redisClient.KeysFromDb(ctx, "APPL_DB", transceiverKeyPattern)
+	transceiverKeys, err := redisClient.KeysFromDb(ctx, "STATE_DB", transceiverKeyPattern)
 	if err != nil {
 		return err
 	}
@@ -330,7 +330,7 @@ func (collector *interfaceCollector) collectInterfaceOpticalInfo(ctx context.Con
 	for _, transceiverKey := range transceiverKeys {
 		interfaceName := strings.Split(transceiverKey, "|")[1]
 
-		data, err := redisClient.HgetAllFromDb(ctx, "APPL_DB", transceiverKey)
+		data, err := redisClient.HgetAllFromDb(ctx, "STATE_DB", transceiverKey)
 		if err != nil {
 			return err
 		}
