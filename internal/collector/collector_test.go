@@ -26,7 +26,6 @@ func populateRedisData() error {
 	files := []string{
 		"../../fixtures/test/counters_db_data.json",
 		"../../fixtures/test/config_db_data.json",
-		"../../fixtures/test/appl_db_data.json",
 		"../../fixtures/test/state_db_data.json",
 	}
 
