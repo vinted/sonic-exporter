@@ -218,14 +218,14 @@ func (collector *hwCollector) collectPsuInfo(ctx context.Context, redisClient re
 			))
 		}
 
-		outVolts, err := parseFloat(data["output_voltage"])
+		outVolts, err := parseFloat(data["voltage"])
 		if err == nil {
 			collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 				collector.hwPsuOutputVoltageVolts, prometheus.GaugeValue, outVolts, psuId,
 			))
 		}
 
-		outAmperes, err := parseFloat(data["output_current"])
+		outAmperes, err := parseFloat(data["current"])
 		if err == nil {
 			collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 				collector.hwPsuOutputCurrentAmperes, prometheus.GaugeValue, outAmperes, psuId,
