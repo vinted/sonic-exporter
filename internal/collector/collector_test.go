@@ -153,6 +153,36 @@ func TestHwCollector(t *testing.T) {
 	if err := testutil.CollectAndCompare(hwCollector, strings.NewReader(metadata+expected), success_metric); err != nil {
 		t.Errorf("unexpected collecting result:\n%s", err)
 	}
+
+	psuExpected := `
+		# HELP sonic_hw_psu_output_voltage_volts PSU output voltage
+		# TYPE sonic_hw_psu_output_voltage_volts gauge
+		sonic_hw_psu_output_voltage_volts{slot="1"} 12.4
+		sonic_hw_psu_output_voltage_volts{slot="2"} 12.3
+		# HELP sonic_hw_psu_output_current_amperes PSU output current
+		# TYPE sonic_hw_psu_output_current_amperes gauge
+		sonic_hw_psu_output_current_amperes{slot="1"} 5.0
+		sonic_hw_psu_output_current_amperes{slot="2"} 5.0
+		# HELP sonic_hw_psu_input_voltage_volts PSU input voltage
+		# TYPE sonic_hw_psu_input_voltage_volts gauge
+		sonic_hw_psu_input_voltage_volts{slot="1"} 233.2
+		sonic_hw_psu_input_voltage_volts{slot="2"} 233.1
+		# HELP sonic_hw_psu_input_current_amperes PSU input current
+		# TYPE sonic_hw_psu_input_current_amperes gauge
+		sonic_hw_psu_input_current_amperes{slot="1"} 0.3
+		sonic_hw_psu_input_current_amperes{slot="2"} 0.3
+	`
+
+	psuMetrics := []string{
+		"sonic_hw_psu_output_voltage_volts",
+		"sonic_hw_psu_output_current_amperes",
+		"sonic_hw_psu_input_voltage_volts",
+		"sonic_hw_psu_input_current_amperes",
+	}
+
+	if err := testutil.CollectAndCompare(hwCollector, strings.NewReader(psuExpected), psuMetrics...); err != nil {
+		t.Errorf("unexpected collecting result:\n%s", err)
+	}
 }
 
 func TestCrmCollector(t *testing.T) {
