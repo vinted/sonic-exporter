@@ -174,7 +174,8 @@ func (collector *hwCollector) collectPsuInfo(ctx context.Context, redisClient re
 	for _, psuKey := range psuKeys {
 		available_status := 0.0
 		operational_status := 0.0
-		psuId := strings.Split(psuKey, " ")[1]
+		// key is "PSU_INFO|PSU 1" up to 202305, "PSU_INFO|PSU1" from 202511
+		psuId := strings.TrimSpace(strings.TrimPrefix(strings.Split(psuKey, "|")[1], "PSU"))
 
 		data, err := redisClient.HgetAllFromDb(ctx, "STATE_DB", psuKey)
 		if err != nil {
