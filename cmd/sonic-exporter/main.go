@@ -29,14 +29,10 @@ func main() {
 
 	logger := promlog.New(promlogConfig)
 
-	interfaceCollector := collector.NewInterfaceCollector(logger)
-	hwCollector := collector.NewHwCollector(logger)
-	crmCollector := collector.NewCrmCollector(logger)
-	queueCollector := collector.NewQueueCollector(logger)
-	prometheus.MustRegister(interfaceCollector)
-	prometheus.MustRegister(hwCollector)
-	prometheus.MustRegister(crmCollector)
-	prometheus.MustRegister(queueCollector)
+	if err := collector.Register(prometheus.DefaultRegisterer, logger); err != nil {
+		level.Error(logger).Log("msg", "Error registering collectors", "err", err)
+		os.Exit(1)
+	}
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

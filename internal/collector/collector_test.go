@@ -9,7 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/alicebob/miniredis/v2"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/prometheus/common/promlog"
 	"github.com/vinted/sonic-exporter/pkg/redis"
@@ -250,5 +252,51 @@ func TestQueueCollector(t *testing.T) {
 
 	if err := testutil.CollectAndCompare(queueCollector, strings.NewReader(metadata+expected), success_metric); err != nil {
 		t.Errorf("unexpected collecting result:\n%s", err)
+	}
+}
+
+func TestCollectorsAreEnabledByDefault(t *testing.T) {
+	if _, err := kingpin.CommandLine.Parse([]string{}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	for _, name := range collectorNames {
+		if !*collectorState[name] {
+			t.Errorf("collector %v is not enabled by default", name)
+		}
+	}
+}
+
+func TestRegisterSkipsDisabledCollectors(t *testing.T) {
+	promlogConfig := &promlog.Config{}
+	logger := promlog.New(promlogConfig)
+
+	disabled := "queue"
+
+	for _, name := range collectorNames {
+		enabled := name != disabled
+		original := *collectorState[name]
+		*collectorState[name] = enabled
+		defer func(name string, value bool) { *collectorState[name] = value }(name, original)
+	}
+
+	reg := prometheus.NewPedanticRegistry()
+	if err := Register(reg, logger); err != nil {
+		t.Fatalf("failed to register collectors: %v", err)
+	}
+
+	metrics, err := reg.Gather()
+	if err != nil {
+		t.Fatalf("failed to gather metrics: %v", err)
+	}
+
+	for _, metric := range metrics {
+		if strings.HasPrefix(metric.GetName(), "sonic_"+disabled+"_") {
+			t.Errorf("metric %v exposed while %v collector is disabled", metric.GetName(), disabled)
+		}
+	}
+
+	if len(metrics) == 0 {
+		t.Error("no metrics exposed while only one collector is disabled")
 	}
 }
