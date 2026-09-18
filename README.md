@@ -2,11 +2,14 @@
 
 Prometheus exporter for [SONiC](https://github.com/sonic-net/SONiC) NOS.
 
-Currently supported collectors:
-- [HW collector](internal/collector/hw_collector.go): collects metrics about PSU and Fan operation
-- [Interface collector](internal/collector/interface_collector.go): collect metrics about interface operation and performance.
-- [CRM collector](internal/collector/hw_collector.go): collects Critial Resource Monitoring metrics.
-- [Queue collector](internal/collector/queue_collector.go): collects metrics about queues.
+Currently supported collectors, all enabled by default:
+
+| Collector | Flag | Description |
+| --- | --- | --- |
+| [Interface](internal/collector/interface_collector.go) | `--collector.interface` | Metrics about interface operation and performance. |
+| [HW](internal/collector/hw_collector.go) | `--collector.hw` | Metrics about PSU and Fan operation. |
+| [CRM](internal/collector/crm_collector.go) | `--collector.crm` | Critical Resource Monitoring metrics. |
+| [Queue](internal/collector/queue_collector.go) | `--collector.queue` | Metrics about queues. |
 
 # Usage
 
@@ -22,7 +25,18 @@ $ curl localhost:9101/metrics
 
 # Configuration
 
-Environment variables:
+## Collectors
+
+Every collector is enabled by default. To disable one, pass its flag with the
+`--no-` prefix:
+
+```bash
+$ ./sonic-exporter --no-collector.queue --no-collector.crm
+```
+
+Run `./sonic-exporter --help` for the full list of flags.
+
+## Environment variables
 
 - `REDIS_ADDRESS` - redis connection string, if using unix socket set `REDIS_NETWORK` to `unix`. Default: `localhost:6379`.
 - `REDIS_PASSWORD` - password used when connecting to redis.
