@@ -243,7 +243,7 @@ func (collector *interfaceCollector) collectInterfaceInfo(ctx context.Context, r
 }
 
 func (collector *interfaceCollector) collectInterfaceConfigInfo(ctx context.Context, redisClient redis.Client, interfaceName string) error {
-	var interfaceKey string = fmt.Sprintf("PORTCHANNEL|%s", interfaceName)
+	var interfaceKey = fmt.Sprintf("PORTCHANNEL|%s", interfaceName)
 
 	if strings.HasPrefix(interfaceName, "Ethernet") {
 		interfaceKey = fmt.Sprintf("PORT|%s", interfaceName)
@@ -286,7 +286,7 @@ func (collector *interfaceCollector) collectInterfaceConfigInfo(ctx context.Cont
 
 func (collector *interfaceCollector) collectInterfaceOperationInfo(ctx context.Context, redisClient redis.Client, interfaceName string) error {
 	var (
-		portKey           string  = fmt.Sprintf("PORT_TABLE:%s", interfaceName)
+		portKey                   = fmt.Sprintf("PORT_TABLE:%s", interfaceName)
 		adminStatus       float64 = 0
 		operationalStatus float64 = 0
 	)
