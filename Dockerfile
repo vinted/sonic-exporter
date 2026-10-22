@@ -1,7 +1,7 @@
 # ===========
 # Build stage
 # ===========
-FROM golang:1.21.0-alpine3.18 AS builder
+FROM golang:1.26.10-alpine3.23 AS builder
 
 WORKDIR /code
 
@@ -16,10 +16,10 @@ RUN go build -o sonic-exporter ./cmd/sonic-exporter/main.go
 # ===========
 # Final stage
 # ===========
-FROM alpine:3.18.3
+FROM alpine:3.23
 
 WORKDIR /app
-RUN apk --no-cache add curl
+RUN apk --no-cache add ca-certificates-bundle=20261020-r0 curl
 
 COPY --from=builder /code/sonic-exporter .
 
