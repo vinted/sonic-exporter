@@ -109,15 +109,73 @@ func (c Client) HsetToDb(ctx context.Context, dbName, key string, data map[strin
 	return nil
 }
 
+// KeysFromDb returns all keys matching pattern. It uses SCAN, which does not block redis like KEYS.
 func (c Client) KeysFromDb(ctx context.Context, dbName, pattern string) ([]string, error) {
+	return c.ScanKeys(ctx, dbName, pattern)
+}
+
+// ScanKeys iterates the keyspace with SCAN (COUNT 1000) and returns every key matching pattern.
+func (c Client) ScanKeys(ctx context.Context, dbName, pattern string) ([]string, error) {
 	client, err := c.selectClient(dbName)
 	if err != nil {
 		return nil, err
 	}
 
-	keys, err := client.Keys(ctx, pattern).Result()
+	var (
+		keys   []string
+		cursor uint64
+	)
 
-	return keys, err
+	for {
+		batch, next, err := client.Scan(ctx, cursor, pattern, 1000).Result()
+		if err != nil {
+			return nil, err
+		}
+
+		keys = append(keys, batch...)
+		cursor = next
+
+		if cursor == 0 {
+			return keys, nil
+		}
+	}
+}
+
+const pipelineBatch = 512
+
+// PipelineHGetAll issues HGETALL for every key in pipelined batches and returns the hashes by key.
+// Keys that do not exist map to an empty hash.
+func (c Client) PipelineHGetAll(ctx context.Context, dbName string, keys []string) (map[string]map[string]string, error) {
+	client, err := c.selectClient(dbName)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]map[string]string, len(keys))
+
+	for start := 0; start < len(keys); start += pipelineBatch {
+		end := start + pipelineBatch
+		if end > len(keys) {
+			end = len(keys)
+		}
+
+		pipe := client.Pipeline()
+		cmds := make([]*redis.MapStringStringCmd, 0, end-start)
+
+		for _, key := range keys[start:end] {
+			cmds = append(cmds, pipe.HGetAll(ctx, key))
+		}
+
+		if _, err := pipe.Exec(ctx); err != nil {
+			return nil, err
+		}
+
+		for i, cmd := range cmds {
+			result[keys[start+i]] = cmd.Val()
+		}
+	}
+
+	return result, nil
 }
 
 func (c Client) Close() {

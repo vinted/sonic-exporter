@@ -3036,6 +3036,1041 @@
       ],
       "title": "Queue collector status",
       "type": "stat"
+    },
+    {
+      "type": "row",
+      "title": "Lossless fabric: PFC per priority (collector pfc)",
+      "collapsed": false,
+      "id": 201,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 64
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "PFC frames received by port and priority",
+      "description": "The peer pausing this switch port. Some SONiC/SAI builds count received PFC under another priority index than on the wire.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 202,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 65
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "sum by (device, priority) (rate(sonic_pfc_received_frames_total{instance=\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{device}} p{{priority}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pps",
+          "noValue": "No data: the collector is not enabled (see the Exporter row)",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "PFC frames transmitted by port and priority",
+      "description": "This switch pausing its peer. A flat zero under load means the switch never asks senders to slow down.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 203,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 65
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "sum by (device, priority) (rate(sonic_pfc_transmitted_frames_total{instance=\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{device}} p{{priority}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pps",
+          "noValue": "No data: the collector is not enabled (see the Exporter row)",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "PFC pause duration (share of time paused)",
+      "description": "Only when the switch exposes a pause-duration counter.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 204,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 73
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "sum by (device, priority, direction) (rate(sonic_pfc_pause_duration_microseconds_total{instance=\"$instance\"}[$__rate_interval])) / 1e6",
+          "legendFormat": "{{device}} p{{priority}} {{direction}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "No data: this switch does not export this counter",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Lossless fabric: priority groups, buffer pools, queue limit (collectors pg, buffer_pool, queue_limit)",
+      "collapsed": false,
+      "id": 205,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 81
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "PG watermark by priority group",
+      "description": "Ingress priority group peaks, shared and headroom. Headroom above zero means PFC was triggered. Use --collector.pg.include-pgs=0-7 --collector.pg.types=periodic to see where traffic lands.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 206,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 82
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "max by (device, pg, watermark) (sonic_pg_watermark_bytes{instance=\"$instance\",type=\"periodic\"})",
+          "legendFormat": "{{device}} pg{{pg}} {{watermark}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "No data: the collector is not enabled (see the Exporter row)",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "PG drops",
+      "description": "Needs the PG drop counter group on the switch.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 207,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 82
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "sum by (device, pg) (rate(sonic_pg_dropped_packets_total{instance=\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{device}} pg{{pg}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pps",
+          "noValue": "No data: this switch does not export this counter",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Buffer pool watermark",
+      "description": "Ingress pool occupancy.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 208,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 90
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "max by (pool, type) (sonic_buffer_pool_watermark_bytes{instance=\"$instance\"})",
+          "legendFormat": "{{pool}} {{type}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "No data: the collector is not enabled (see the Exporter row)",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Queue watermark against its limit",
+      "description": "Periodic shared watermark divided by sonic_queue_limit_bytes; above 90% the queue is about to tail-drop (alert SonicQueueNearLimit).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 209,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 90
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "max by (device, queue) (sonic_queue_watermark_bytes_total{instance=\"$instance\",type=\"periodic\",watermark=\"shared\"}) / on (instance, device, queue) sonic_queue_limit_bytes",
+          "legendFormat": "{{device}} q{{queue}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "No data: the collector is not enabled (see the Exporter row)",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Lossless fabric: configuration compliance and classification (collectors qos_config, qos_map)",
+      "collapsed": false,
+      "id": 210,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 98
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Ports with PFC on priority 3 and no egress lossless profile",
+      "description": "Alert SonicLosslessEgressProfileMissing. Empty is healthy.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 211,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 99
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "(sonic_port_pfc_enabled{instance=\"$instance\",priority=\"3\"} == 1) unless on (instance, device) sonic_buffer_queue_profile_info{queues=~\".*3.*\"}",
+          "legendFormat": "",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "None: nothing to report"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
+      "type": "table",
+      "title": "QoS maps not bound to a port",
+      "description": "PORT_QOS_MAP maps that are missing (value 0).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 212,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 99
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "sonic_port_qos_map_bound{instance=\"$instance\"} == 0",
+          "legendFormat": "",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "None: nothing to report"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
+      "type": "table",
+      "title": "DSCP values mapped to the lossless class (3)",
+      "description": "DSCP 0 here means unmarked traffic shares the lossless class (alert SonicDefaultDscpSharesLosslessClass).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 213,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 107
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "sonic_dscp_to_tc{instance=\"$instance\",tc=\"3\"}",
+          "legendFormat": "",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "None: nothing to report"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
+      "type": "table",
+      "title": "QoS map bound to each port",
+      "description": "Which classification map each port uses.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 214,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 107
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "sonic_port_qos_map_info{instance=\"$instance\",type=\"dscp_to_tc_map\"}",
+          "legendFormat": "",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "None: nothing to report"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
+      "type": "row",
+      "title": "Lossless fabric: ECN, PFC watchdog, neighbours (collectors ecn_pfcwd, lldp)",
+      "collapsed": false,
+      "id": 215,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 115
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "ECN marked and WRED dropped packets",
+      "description": "Present only when WRED is configured and the switch counts it.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 216,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 116
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "sum by (device, queue) (rate(sonic_queue_ecn_marked_packets_total{instance=\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "ecn {{device}} q{{queue}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "sum by (device, queue) (rate(sonic_queue_wred_dropped_packets_total{instance=\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "wred drop {{device}} q{{queue}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pps",
+          "noValue": "No data: this switch does not export this counter",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Availability of optional switch counters (series)",
+      "description": "0 explains an empty panel: the switch does not export the counter.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 217,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 116
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "count(sonic_pfc_pause_duration_microseconds_total{instance=\"$instance\"}) or on () vector(0)",
+          "legendFormat": "PFC pause duration",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "count(sonic_pg_dropped_packets_total{instance=\"$instance\"}) or on () vector(0)",
+          "legendFormat": "PG drops",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "count(sonic_queue_ecn_marked_packets_total{instance=\"$instance\"}) or on () vector(0)",
+          "legendFormat": "ECN marked",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "count(sonic_pfcwd_queue_stormed{instance=\"$instance\"}) or on () vector(0)",
+          "legendFormat": "PFC watchdog queues",
+          "refId": "D"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data: the collector is not enabled (see the Exporter row)",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "LLDP neighbours",
+      "description": "Ports whose peer sends LLDP.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 218,
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 124
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "sonic_lldp_neighbor_info{instance=\"$instance\"}",
+          "legendFormat": "",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "None: nothing to report"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
+      "type": "row",
+      "title": "Exporter health (collector success, age, errors)",
+      "collapsed": false,
+      "id": 219,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 132
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Collector success",
+      "description": "1 = the collector's last refresh worked. A missing line means the collector is not enabled.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 220,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 133
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "{__name__=~\"sonic_.+_collector_success\",instance=\"$instance\"}",
+          "legendFormat": "{{__name__}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data: the collector is not enabled (see the Exporter row)",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Age of the exporter data",
+      "description": "time() minus the last redis read of each collector. The exporter caches 15 s; a line growing beyond two minutes means the redis reads hang (alert SonicExporterStale).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 221,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 133
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "time() - {__name__=~\"sonic_.+_last_refresh_timestamp_seconds\",instance=\"$instance\"}",
+          "legendFormat": "{{__name__}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "No data: the collector is not enabled (see the Exporter row)",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Values skipped or failed",
+      "description": "sonic_exporter_errors_total by collector and reason (parse = a bad value skipped, redis = a failed read).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 222,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 141
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "sum by (collector, reason) (increase(sonic_exporter_errors_total{instance=\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{collector}} {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "None: no errors",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Scrape duration through the proxy",
+      "description": "Normal under 1 s; alert SonicExporterScrapeSlow above 10 s.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${data_source}"
+      },
+      "id": 223,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 141
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${data_source}"
+          },
+          "expr": "scrape_duration_seconds{job=\"sonic-exporter\",instance=\"$instance\"}",
+          "legendFormat": "scrape",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "No data: the collector is not enabled (see the Exporter row)",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
     }
   ],
   "refresh": "",

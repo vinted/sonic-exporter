@@ -255,14 +255,20 @@ func TestQueueCollector(t *testing.T) {
 	}
 }
 
-func TestCollectorsAreEnabledByDefault(t *testing.T) {
+func TestCollectorsDefaults(t *testing.T) {
 	if _, err := kingpin.CommandLine.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
 	for _, name := range collectorNames {
-		if !*collectorState[name] {
-			t.Errorf("collector %v is not enabled by default", name)
+		if *collectorState[name] != defaultEnabled[name] {
+			t.Errorf("collector %v: enabled=%v, want %v", name, *collectorState[name], defaultEnabled[name])
+		}
+	}
+
+	for _, name := range []string{"interface", "hw", "crm", "queue"} {
+		if !defaultEnabled[name] {
+			t.Errorf("original collector %v must stay enabled by default", name)
 		}
 	}
 }
@@ -290,8 +296,14 @@ func TestRegisterSkipsDisabledCollectors(t *testing.T) {
 		t.Fatalf("failed to gather metrics: %v", err)
 	}
 
+	ownMetrics := map[string]bool{
+		"sonic_queue_packets_total": true, "sonic_queue_bytes_total": true, "sonic_queue_dropped_packets_total": true,
+		"sonic_queue_dropped_bytes_total": true, "sonic_queue_shared_watermark_bytes_total": true,
+		"sonic_queue_watermark_bytes_total": true, "sonic_queue_collector_success": true, "sonic_queue_scrape_duration_seconds": true,
+	}
+
 	for _, metric := range metrics {
-		if strings.HasPrefix(metric.GetName(), "sonic_"+disabled+"_") {
+		if ownMetrics[metric.GetName()] {
 			t.Errorf("metric %v exposed while %v collector is disabled", metric.GetName(), disabled)
 		}
 	}

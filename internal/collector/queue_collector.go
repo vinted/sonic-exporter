@@ -21,6 +21,7 @@ type queueCollector struct {
 	queueSharedWatermarkBytes *prometheus.Desc
 	queueWatermarksBytes      *prometheus.Desc
 	scrapeDuration            *prometheus.Desc
+	lastRefresh               *prometheus.Desc
 	scrapeCollectorSuccess    *prometheus.Desc
 	cachedMetrics             []prometheus.Metric
 	lastScrapeTime            time.Time
@@ -51,7 +52,8 @@ func NewQueueCollector(logger log.Logger) *queueCollector {
 			"Time it took for prometheus to scrape sonic queue metrics", nil, nil),
 		scrapeCollectorSuccess: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "collector_success"),
 			"Whether queue collector succeeded", nil, nil),
-		logger: logger,
+		lastRefresh: newRefreshDesc("queue"),
+		logger:      logger,
 	}
 }
 
@@ -78,7 +80,9 @@ func (collector *queueCollector) Collect(ch chan<- prometheus.Metric) {
 	err := collector.scrapeMetrics(ctx)
 	if err != nil {
 		scrapeSuccess = 0
+		recordError("queue", "redis")
 		level.Error(collector.logger).Log("err", err)
+		collector.lastScrapeTime = time.Now() // cache failures too
 	}
 	collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 		collector.scrapeCollectorSuccess, prometheus.GaugeValue, scrapeSuccess,
@@ -108,21 +112,28 @@ func (collector *queueCollector) scrapeMetrics(ctx context.Context) error {
 		return fmt.Errorf("redis read failed: %w", err)
 	}
 
-	for queue := range queues {
-		interfaceName := strings.Split(queue, ":")[0]
-		queueNumber := strings.Split(queue, ":")[1]
+	keys := make([]string, 0, len(queues)*4)
+	for _, oid := range queues {
+		keys = append(keys, "COUNTERS:"+oid)
+		for _, watermarkType := range watermarkTypes {
+			keys = append(keys, watermarkType+"_WATERMARKS:"+oid)
+		}
+	}
 
-		counterKey := fmt.Sprintf("COUNTERS:%s", queues[queue])
+	hashes, err := redisClient.PipelineHGetAll(ctx, "COUNTERS_DB", keys)
+	if err != nil {
+		return fmt.Errorf("redis read failed: %w", err)
+	}
 
-		err := collector.collectQueueCounters(ctx, redisClient, interfaceName, queueNumber, counterKey)
-		if err != nil {
-			return fmt.Errorf("queue counters collection failed: %w", err)
+	for queue, oid := range queues {
+		interfaceName, queueNumber, ok := splitDeviceIndex(queue)
+		if !ok {
+			recordError("queue", "parse")
+			continue
 		}
 
-		err = collector.collectQueueWatermarks(ctx, redisClient, interfaceName, queueNumber, queues[queue])
-		if err != nil {
-			return fmt.Errorf("queue watermarks collection failed: %w", err)
-		}
+		collector.collectQueueCounters(interfaceName, queueNumber, hashes["COUNTERS:"+oid])
+		collector.collectQueueWatermarks(interfaceName, queueNumber, oid, hashes)
 	}
 
 	level.Info(collector.logger).Log("msg", "Ending queue metric scrape")
@@ -130,6 +141,8 @@ func (collector *queueCollector) scrapeMetrics(ctx context.Context) error {
 	collector.lastScrapeTime = time.Now()
 	collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 		collector.scrapeDuration, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(),
+	), prometheus.MustNewConstMetric(
+		collector.lastRefresh, prometheus.GaugeValue, float64(time.Now().Unix()),
 	))
 	return nil
 }
@@ -143,109 +156,55 @@ func (collector *queueCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.queueWatermarksBytes
 	ch <- collector.scrapeDuration
 	ch <- collector.scrapeCollectorSuccess
+	ch <- collector.lastRefresh
 }
 
-func (collector *queueCollector) collectQueueCounters(ctx context.Context, redisClient redis.Client, interfaceName, queueNumber, counterKey string) error {
-	var counters map[string]string
+var watermarkTypes = []string{"USER", "PERSISTENT", "PERIODIC"}
 
-	// Retrieve packet counters from redis database
-	counters, err := redisClient.HgetAllFromDb(ctx, "COUNTERS_DB", counterKey)
-	if err != nil {
-		return fmt.Errorf("redis read failed: %w", err)
+// collectQueueCounters exports the queue counters. A value that cannot be parsed is counted in
+// sonic_exporter_errors_total and only that series is skipped.
+func (collector *queueCollector) collectQueueCounters(interfaceName, queueNumber string, counters map[string]string) {
+	series := []struct {
+		field string
+		desc  *prometheus.Desc
+	}{
+		{"SAI_QUEUE_STAT_PACKETS", collector.queuePackets},
+		{"SAI_QUEUE_STAT_BYTES", collector.queueBytes},
+		{"SAI_QUEUE_STAT_DROPPED_PACKETS", collector.queueDroppedPackets},
+		{"SAI_QUEUE_STAT_DROPPED_BYTES", collector.queueDroppedBytes},
+		{"SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES", collector.queueSharedWatermarkBytes},
 	}
 
-	packets, err := parseFloat(counters["SAI_QUEUE_STAT_PACKETS"])
-	if err != nil {
-		return fmt.Errorf("value parse failed: %w", err)
-	}
-
-	collector.cachedMetrics = append(collector.cachedMetrics,
-		prometheus.MustNewConstMetric(
-			collector.queuePackets, prometheus.CounterValue, packets, interfaceName, queueNumber,
-		),
-	)
-
-	bytes, err := parseFloat(counters["SAI_QUEUE_STAT_BYTES"])
-	if err != nil {
-		return fmt.Errorf("value parse failed: %w", err)
-	}
-
-	collector.cachedMetrics = append(collector.cachedMetrics,
-		prometheus.MustNewConstMetric(
-			collector.queueBytes, prometheus.CounterValue, bytes, interfaceName, queueNumber,
-		),
-	)
-
-	droppedPackets, err := parseFloat(counters["SAI_QUEUE_STAT_DROPPED_PACKETS"])
-	if err != nil {
-		return fmt.Errorf("value parse failed: %w", err)
-	}
-
-	collector.cachedMetrics = append(collector.cachedMetrics,
-		prometheus.MustNewConstMetric(
-			collector.queueDroppedPackets, prometheus.CounterValue, droppedPackets, interfaceName, queueNumber,
-		),
-	)
-
-	droppedBytes, err := parseFloat(counters["SAI_QUEUE_STAT_DROPPED_BYTES"])
-	if err != nil {
-		return fmt.Errorf("value parse failed: %w", err)
-	}
-
-	collector.cachedMetrics = append(collector.cachedMetrics,
-		prometheus.MustNewConstMetric(
-			collector.queueDroppedBytes, prometheus.CounterValue, droppedBytes, interfaceName, queueNumber,
-		),
-	)
-
-	sharedWatermarkBytes, err := parseFloat(counters["SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES"])
-	if err != nil {
-		return fmt.Errorf("value parse failed: %w", err)
-	}
-
-	collector.cachedMetrics = append(collector.cachedMetrics,
-		prometheus.MustNewConstMetric(
-			collector.queueSharedWatermarkBytes, prometheus.CounterValue, sharedWatermarkBytes, interfaceName, queueNumber,
-		),
-	)
-
-	return nil
-}
-
-func (collector *queueCollector) collectQueueWatermarks(ctx context.Context, redisClient redis.Client, interfaceName, queueNumber, queueName string) error {
-	var watermarkValue float64
-	for _, watermarkType := range []string{"USER", "PERSISTENT", "PERIODIC"} {
-		watermarksKey := fmt.Sprintf("%s_WATERMARKS:%s", watermarkType, queueName)
-		watermarks, err := redisClient.HgetAllFromDb(ctx, "COUNTERS_DB", watermarksKey)
-		if err != nil {
-			return fmt.Errorf("redis read failed: %w", err)
+	for _, item := range series {
+		value, ok := parseValue("queue", counters[item.field])
+		if !ok {
+			continue
 		}
 
-		for watermarkKey, value := range watermarks {
-			watermarkValue, err = parseFloat(value)
-			if err != nil {
-				return fmt.Errorf("value parse failed: %w", err)
+		collector.cachedMetrics = append(collector.cachedMetrics,
+			prometheus.MustNewConstMetric(item.desc, prometheus.CounterValue, value, interfaceName, queueNumber),
+		)
+	}
+}
+
+func (collector *queueCollector) collectQueueWatermarks(interfaceName, queueNumber, queueOid string, hashes map[string]map[string]string) {
+	for _, watermarkType := range watermarkTypes {
+		for watermarkKey, raw := range hashes[watermarkType+"_WATERMARKS:"+queueOid] {
+			value, ok := parseValue("queue", raw)
+			if !ok {
+				continue
 			}
 
-			prefixes := []string{"SAI_QUEUE_STAT_", "SAI_INGRESS_PRIORITY_GROUP_STAT_"}
-			suffixes := []string{"_WATERMARK_BYTES"}
-			watermarkLabel := watermarkKey
-			for _, prefix := range prefixes {
-				watermarkLabel = strings.TrimPrefix(watermarkLabel, prefix)
-			}
-
-			for _, suffix := range suffixes {
-				watermarkLabel = strings.TrimSuffix(watermarkLabel, suffix)
-			}
+			watermarkLabel := strings.TrimPrefix(watermarkKey, "SAI_QUEUE_STAT_")
+			watermarkLabel = strings.TrimPrefix(watermarkLabel, "SAI_INGRESS_PRIORITY_GROUP_STAT_")
+			watermarkLabel = strings.TrimSuffix(watermarkLabel, "_WATERMARK_BYTES")
 
 			collector.cachedMetrics = append(collector.cachedMetrics,
 				prometheus.MustNewConstMetric(
-					collector.queueWatermarksBytes, prometheus.CounterValue, watermarkValue,
+					collector.queueWatermarksBytes, prometheus.CounterValue, value,
 					interfaceName, queueNumber, strings.ToLower(watermarkType), strings.ToLower(watermarkLabel),
 				),
 			)
 		}
 	}
-
-	return nil
 }

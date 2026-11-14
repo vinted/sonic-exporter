@@ -35,6 +35,7 @@ type interfaceCollector struct {
 	interfaceReceivedBytes           *prometheus.Desc
 	interfaceReceiveErrs             *prometheus.Desc
 	scrapeDuration                   *prometheus.Desc
+	lastRefresh                      *prometheus.Desc
 	scrapeCollectorSuccess           *prometheus.Desc
 	cachedMetrics                    []prometheus.Metric
 	lastScrapeTime                   time.Time
@@ -87,7 +88,8 @@ func NewInterfaceCollector(logger log.Logger) *interfaceCollector {
 			"Time it took for prometheus to scrape sonic interface metrics", nil, nil),
 		scrapeCollectorSuccess: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "collector_success"),
 			"Whether interface collector succeeded", nil, nil),
-		logger: logger,
+		lastRefresh: newRefreshDesc("interface"),
+		logger:      logger,
 	}
 }
 
@@ -114,7 +116,9 @@ func (collector *interfaceCollector) Collect(ch chan<- prometheus.Metric) {
 	err := collector.scrapeMetrics(ctx)
 	if err != nil {
 		scrapeSuccess = 0
+		recordError("interface", "redis")
 		level.Error(collector.logger).Log("err", err)
+		collector.lastScrapeTime = time.Now() // cache failures too
 	}
 	collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 		collector.scrapeCollectorSuccess, prometheus.GaugeValue, scrapeSuccess,
@@ -144,24 +148,37 @@ func (collector *interfaceCollector) scrapeMetrics(ctx context.Context) error {
 		return fmt.Errorf("redis read failed: %w", err)
 	}
 
+	// A failure on one port must not drop the series of the other ports: remember the first error,
+	// count every one, and keep going. collector_success still reports 0.
+	var firstErr error
+
+	skip := func(err error) {
+		recordError("interface", "parse")
+
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
+
 	for port := range ports {
 		counterKey := fmt.Sprintf("COUNTERS:%s", ports[port])
 
-		err := collector.collectInterfaceCounters(ctx, redisClient, port, counterKey)
-		if err != nil {
-			return fmt.Errorf("interface counters collection failed: %w", err)
+		if err := collector.collectInterfaceCounters(ctx, redisClient, port, counterKey); err != nil {
+			skip(fmt.Errorf("interface counters collection failed for %s: %w", port, err))
+			continue
 		}
 
-		err = collector.collectInterfaceInfo(ctx, redisClient, port)
-		if err != nil {
-			return fmt.Errorf("interface info collection failed: %w", err)
+		if err := collector.collectInterfaceInfo(ctx, redisClient, port); err != nil {
+			skip(fmt.Errorf("interface info collection failed for %s: %w", port, err))
 		}
-
 	}
 
-	err = collector.collectInterfaceOpticalInfo(ctx, redisClient)
-	if err != nil {
-		return fmt.Errorf("interface optical info collection failed: %w", err)
+	if err := collector.collectInterfaceOpticalInfo(ctx, redisClient); err != nil {
+		skip(fmt.Errorf("interface optical info collection failed: %w", err))
+	}
+
+	if firstErr != nil {
+		return firstErr
 	}
 
 	level.Info(collector.logger).Log("msg", "Ending interface metric scrape")
@@ -169,6 +186,8 @@ func (collector *interfaceCollector) scrapeMetrics(ctx context.Context) error {
 	collector.lastScrapeTime = time.Now()
 	collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 		collector.scrapeDuration, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(),
+	), prometheus.MustNewConstMetric(
+		collector.lastRefresh, prometheus.GaugeValue, float64(time.Now().Unix()),
 	))
 	return nil
 }
@@ -193,6 +212,7 @@ func (collector *interfaceCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.interfaceReceivedBytes
 	ch <- collector.scrapeDuration
 	ch <- collector.scrapeCollectorSuccess
+	ch <- collector.lastRefresh
 }
 
 func (collector *interfaceCollector) collectInterfaceCounters(ctx context.Context, redisClient redis.Client, interfaceName, counterKey string) error {

@@ -19,6 +19,7 @@ type crmCollector struct {
 	crmAclResourceAvailable *prometheus.Desc
 	crmAclResourceUsed      *prometheus.Desc
 	scrapeDuration          *prometheus.Desc
+	lastRefresh             *prometheus.Desc
 	scrapeCollectorSuccess  *prometheus.Desc
 	cachedMetrics           []prometheus.Metric
 	lastScrapeTime          time.Time
@@ -45,7 +46,8 @@ func NewCrmCollector(logger log.Logger) *crmCollector {
 			"Time it took for prometheus to scrape sonic crm metrics", nil, nil),
 		scrapeCollectorSuccess: prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "collector_success"),
 			"Whether crm collector succeeded", nil, nil),
-		logger: logger,
+		lastRefresh: newRefreshDesc("crm"),
+		logger:      logger,
 	}
 }
 
@@ -56,6 +58,7 @@ func (collector *crmCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.crmAclResourceUsed
 	ch <- collector.scrapeDuration
 	ch <- collector.scrapeCollectorSuccess
+	ch <- collector.lastRefresh
 }
 
 func (collector *crmCollector) Collect(ch chan<- prometheus.Metric) {
@@ -81,6 +84,8 @@ func (collector *crmCollector) Collect(ch chan<- prometheus.Metric) {
 	err := collector.scrapeMetrics(ctx)
 	if err != nil {
 		scrapeSuccess = 0
+		recordError("crm", "redis")
+		collector.lastScrapeTime = time.Now() // cache failures too
 		level.Error(collector.logger).Log("err", err)
 	}
 	collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
@@ -125,6 +130,8 @@ func (collector *crmCollector) scrapeMetrics(ctx context.Context) error {
 	collector.lastScrapeTime = time.Now()
 	collector.cachedMetrics = append(collector.cachedMetrics, prometheus.MustNewConstMetric(
 		collector.scrapeDuration, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(),
+	), prometheus.MustNewConstMetric(
+		collector.lastRefresh, prometheus.GaugeValue, float64(time.Now().Unix()),
 	))
 	return nil
 }

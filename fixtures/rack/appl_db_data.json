@@ -1,0 +1,23 @@
+{
+  "data": {
+    "PORT_TABLE:Ethernet0": {
+      "admin_status": "up",
+      "alias": "hundredGigE1",
+      "fec": "none",
+      "lanes": "73,74,75,76",
+      "mtu": "9100",
+      "oper_status": "up",
+      "parent_port": "Ethernet0"
+    },
+    "PORT_TABLE:Ethernet128": {
+      "admin_status": "up",
+      "alias": "hundredGigE33",
+      "fec": "none",
+      "lanes": "69,70,71,72",
+      "mtu": "9100",
+      "oper_status": "up",
+      "parent_port": "Ethernet128"
+    }
+  },
+  "id": "APPL_DB"
+}
